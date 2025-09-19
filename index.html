@@ -3,98 +3,156 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Čechlo – Elektrické minidumpery</title>
-  <meta name="description" content="Elektrické minidumpery Čechlo. Poptávkový formulář, ceník a kontakt.">
-  <meta name="theme-color" content="#0ea5e9">
-  <script>
-    // GA4 placeholder (replace G-XXXX with your ID or remove if unused)
-    // window.dataLayer = window.dataLayer || [];
-    // function gtag(){dataLayer.push(arguments);}
-    // gtag('js', new Date());
-    // gtag('config', 'G-XXXXXXX');
-  </script>
+  <title>ČECH‑LO – Minidumper LO50E</title>
+  <meta name="description" content="Spolehlivý a výkonný minidumper LO50E. Nosnost 500 kg, hydraulické sklápění, 48V 1000W. Poptávka online.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;color:#0b1220}
-    header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eef2f7}
-    .wrap{max-width:1000px;margin:0 auto;padding:16px}
-    .btn{background:#0ea5e9;color:#fff;border:none;padding:12px 18px;border-radius:12px;cursor:pointer}
-    input,select,textarea{width:100%;padding:10px;border:1px solid #d7dbe2;border-radius:10px}
-    .card{background:#fff;border:1px solid #eef2f7;border-radius:16px;padding:16px}
-    footer{background:#f7f9fc;border-top:1px solid #eef2f7;margin-top:40px}
-    .notice{position:fixed;left:12px;right:12px;bottom:12px;background:#0b1220;color:#fff;padding:14px;border-radius:12px}
-    .hidden{display:none}
-  </style>
+:root{
+  --bg:#0a0f1a;        /* deep slate for hero text over light bg? we'll use white hero */
+  --text:#0b1220;
+  --muted:#5b6472;
+  --accent:#1e3a8a;    /* deep blue */
+  --accent-2:#2563eb;  /* brighter blue for hover */
+  --surface:#ffffff;
+  --surface-2:#f6f8fb;
+  --border:#e5eaf1;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--surface)}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-2)}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{position:sticky;top:0;background:rgba(255,255,255,.9);backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid var(--border);z-index:10}
+nav a{margin:0 10px;font-weight:600}
+.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center;padding:28px 0}
+h1{font-size:44px;line-height:1.05;margin:0 0 8px}
+h2{font-size:30px;margin:24px 0 8px}
+.p{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;padding:12px 18px;border-radius:12px;cursor:pointer}
+.btn.secondary{background:#0b1220}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px}
+.kv{display:flex;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.kv span{padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.price{display:inline-flex;align-items:baseline;gap:8px;background:#111827;color:#fff;padding:10px 14px;border-radius:12px;font-weight:700}
+.price small{opacity:.8;font-weight:500}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px;border-top:1px solid var(--border);text-align:left}
+.section{padding:28px 0}
+.section.alt{background:var(--surface-2)}
+label{font-size:14px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
+footer{background:var(--surface-2);border-top:1px solid var(--border);margin-top:40px}
+.topbar{background:#0b1220;color:#fff}
+.topbar .wrap{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#e2e8f0;color:#0b1220;font-weight:600;font-size:12px}
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr}
+  .grid-4{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .grid-4{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
+  <div class="topbar">
+    <div class="wrap"><span>📦 Skladem vybrané kusy</span><a href="#kontakt" style="color:#93c5fd">Rychlá poptávka</a></div>
+  </div>
   <header>
-    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;">
-      <strong>Čechlo</strong>
-      <nav style="display:flex;gap:12px;font-size:14px">
-        <a href="#produkty">Produkty</a>
+    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center">
+      <strong>ČECH‑LO</strong>
+      <nav>
+        <a href="#produkt">Produkt</a>
+        <a href="#ofirme">O firmě</a>
         <a href="#kontakt">Kontakt</a>
       </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <section>
-      <h1 style="font-size:40px;line-height:1.1;margin:24px 0 8px">Elektrické minidumpery Čechlo</h1>
-      <p style="color:#5b6472;max-width:720px">Tichý provoz, nosnost až 500 kg, servis v ČR. Získejte nabídku na míru – vyplňte krátký formulář.</p>
-      <div style="display:flex;gap:12px;margin:18px 0">
-        <a class="btn" href="#kontakt">Získat nabídku</a>
-        <a class="btn" style="background:#0b1220" href="#produkty">Prohlédnout modely</a>
+    <section class="hero" id="produkt">
+      <div>
+        <div class="badge">Minidumper LO50E</div>
+        <h1>Spolehlivý a výkonný&nbsp;minidumper</h1>
+        <p class="p">Robustní konstrukce, moderní elektropohon a maximální efektivita práce. Ideální pro stavebnictví, zahradnictví a zemědělství.</p>
+        <div class="kv" style="margin:12px 0 6px">
+          <span>Nosnost 500 kg</span><span>Hydraulické sklápění</span><span>48 V 1000 W</span><span>8–10 h výdrž</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+          <a class="btn" href="#parametry">Musím vědět víc</a>
+          <a class="btn ghost" href="#kontakt">Mám zájem</a>
+          <span class="price">48&nbsp;900&nbsp;Kč <small>bez DPH</small></span>
+        </div>
+      </div>
+      <div class="card" style="min-height:280px;display:grid;place-items:center">
+        <em>Galerie produktu</em>
       </div>
     </section>
 
-    <section id="produkty" style="margin-top:28px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
-      <div class="card"><h3>Mini 300</h3><p>300 kg • 24 V • až 6 h</p><strong>od 39 900 Kč</strong></div>
-      <div class="card"><h3>Agro 400</h3><p>400 kg • 36 V • až 7 h</p><strong>od 54 900 Kč</strong></div>
-      <div class="card"><h3>Pro 500</h3><p>500 kg • 48 V • až 8 h</p><strong>od 69 900 Kč</strong></div>
+    <section id="parametry" class="section">
+      <h2>Podrobné parametry</h2>
+      <table class="table">
+        <tbody>
+          <tr><th>Model</th><td>Minidumper LO50E</td></tr>
+          <tr><th>Pohon</th><td>Stejnosměrný motor 1000 W / 48 V</td></tr>
+          <tr><th>Brzdný systém</th><td>Elektromagnetická brzda</td></tr>
+          <tr><th>Baterie</th><td>48 V 20 Ah / 32 Ah olověný akumulátor</td></tr>
+          <tr><th>Výdrž baterie</th><td>8–10 h</td></tr>
+          <tr><th>Nabíjecí čas</th><td>6–7 h</td></tr>
+          <tr><th>Nosnost</th><td>500 kg</td></tr>
+          <tr><th>Objem korby</th><td>240 l</td></tr>
+          <tr><th>Sklápění</th><td>Hydraulické</td></tr>
+          <tr><th>Rychlost</th><td>0–3.4 / 4.2 / 5.0 km/h</td></tr>
+        </tbody>
+      </table>
     </section>
 
-    <section id="kontakt" style="margin-top:32px">
-      <h2>Poptávka</h2>
-      <p style="color:#5b6472">Vyplňte kontakty a stručně popište využití (stavba, farma, sklad). Odpovíme do 24 h.</p>
-      <form class="card" method="post" action="https://formsubmit.co/info.cechlo@gmail.com" onsubmit="try{window.localStorage.setItem('formSent','1')}catch(e){}">
+    <section class="section alt">
+      <h2>Čím jsou naše produkty výjimečné?</h2>
+      <div class="grid-4">
+        <div class="card"><h3>Spolehlivost</h3><p class="p">Stroje jsou navrženy pro náročné podmínky a dlouhodobý výkon.</p></div>
+        <div class="card"><h3>Výkon</h3><p class="p">Silný tah a robustní konstrukce pro velké objemy materiálu.</p></div>
+        <div class="card"><h3>Flexibilita</h3><p class="p">Kompaktní rozměry pro práci v omezených prostorech.</p></div>
+        <div class="card"><h3>Nosnost</h3><p class="p">Až 500 kg a možnost pásového provedení pro náročný terén.</p></div>
+      </div>
+    </section>
+
+    <section id="ofirme" class="section">
+      <h2>O firmě</h2>
+      <p class="p">V ČECH‑LO pečlivě sestavujeme a dodáváme motorové vozíky pro širokou škálu činností. Dbáme na kvalitu komponentů a přesnou montáž, aby stroje splnily očekávání i nároky našich zákazníků.</p>
+    </section>
+
+    <section id="kontakt" class="section">
+      <h2>Poptávkový formulář</h2>
+      <form class="card" method="post" action="https://formsubmit.co/info.cechlo@gmail.com" onsubmit="try{localStorage.setItem('formSent','1')}catch(e){}">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div><label>Jméno<input required name="name" placeholder="Jan Novák"></label></div>
           <div><label>Telefon<input required name="phone" placeholder="+420…"></label></div>
           <div style="grid-column:1/-1"><label>E‑mail<input required type="email" name="email" placeholder="jmeno@firma.cz"></label></div>
-          <div><label>Model<select name="model"><option>Mini 300</option><option>Agro 400</option><option>Pro 500</option><option>Nejsem si jistý/á</option></select></label></div>
+          <div><label>Model<select name="model"><option>LO50E</option><option>Nejsem si jistý/á</option></select></label></div>
           <div><label>Použití<select name="use"><option>Stavba</option><option>Farma</option><option>Sklad/areál</option><option>Jiné</option></select></label></div>
           <div style="grid-column:1/-1"><label>Zpráva<textarea name="message" rows="4" placeholder="Co převážíte, jak často, terén…"></textarea></label></div>
         </div>
-        <!-- honeypot -->
-        <input type="text" name="_honey" class="hidden" tabindex="-1" autocomplete="off">
-        <!-- redirect after submit -->
+        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
         <input type="hidden" name="_next" value="/dekuji.html">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
           <label style="font-size:14px"><input type="checkbox" required> Souhlasím se zpracováním údajů</label>
           <button class="btn">Odeslat</button>
         </div>
         <input type="hidden" name="_captcha" value="false">
-        <input type="hidden" name="_subject" value="Nová poptávka – Čechlo">
+        <input type="hidden" name="_subject" value="Nová poptávka – ČECH‑LO">
       </form>
+      <div style="margin-top:8px;color:var(--muted);font-size:12px">Kontakt: <a href="mailto:info.cechlo@gmail.com">info.cechlo@gmail.com</a> · 605 558 570</div>
     </section>
   </main>
 
   <footer>
     <div class="wrap" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:24px 16px">
-      <div>© <span id="y"></span> Čechlo</div>
+      <div>Čechlo s.r.o. © 2023–2025 · IČO: 19358075</div>
       <div><a href="/zasady.html">Zásady zpracování</a></div>
     </div>
   </footer>
-
-  <!-- Cookie notice -->
-  <div id="cookie" class="notice hidden">
-    Tento web používá pouze nezbytné cookies. <a href="/zasady.html" style="color:#93c5fd">Více</a>
-    <button class="btn" style="margin-left:12px;background:#10b981" onclick="document.getElementById('cookie').classList.add('hidden');localStorage.setItem('cookieOK','1')">OK</button>
-  </div>
-  <script>
-    document.getElementById('y').textContent = new Date().getFullYear();
-    try {
-      if(!localStorage.getItem('cookieOK')) document.getElementById('cookie').classList.remove('hidden');
-    } catch(e){}
-  </script>
 </body>
 </html>
