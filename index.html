@@ -3,135 +3,128 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ČECH‑LO – Minidumper LO50E</title>
-  <meta name="description" content="Spolehlivý a výkonný minidumper LO50E. Nosnost 500 kg, hydraulické sklápění, 48V 1000W. Poptávka online.">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <title>ČECH‑LO – Minidumpery LO50E & LO30M</title>
+  <meta name="description" content="Dva oblíbené modely: elektrický LO50E (500 kg, hydraulika) a benzínový LO30M (300 kg, manuální kipr). Rychlá poptávka.">
   <style>
-:root{
-  --bg:#0a0f1a;        /* deep slate for hero text over light bg? we'll use white hero */
-  --text:#0b1220;
-  --muted:#5b6472;
-  --accent:#1e3a8a;    /* deep blue */
-  --accent-2:#2563eb;  /* brighter blue for hover */
-  --surface:#ffffff;
-  --surface-2:#f6f8fb;
-  --border:#e5eaf1;
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--surface)}
-a{color:var(--accent);text-decoration:none}
-a:hover{color:var(--accent-2)}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-header{position:sticky;top:0;background:rgba(255,255,255,.9);backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid var(--border);z-index:10}
-nav a{margin:0 10px;font-weight:600}
-.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center;padding:28px 0}
-h1{font-size:44px;line-height:1.05;margin:0 0 8px}
-h2{font-size:30px;margin:24px 0 8px}
-.p{color:var(--muted)}
-.btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;padding:12px 18px;border-radius:12px;cursor:pointer}
-.btn.secondary{background:#0b1220}
-.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px}
-.kv{display:flex;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-.kv span{padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
-.price{display:inline-flex;align-items:baseline;gap:8px;background:#111827;color:#fff;padding:10px 14px;border-radius:12px;font-weight:700}
-.price small{opacity:.8;font-weight:500}
-.table{width:100%;border-collapse:collapse}
-.table th,.table td{padding:10px;border-top:1px solid var(--border);text-align:left}
-.section{padding:28px 0}
-.section.alt{background:var(--surface-2)}
-label{font-size:14px}
-input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
-footer{background:var(--surface-2);border-top:1px solid var(--border);margin-top:40px}
-.topbar{background:#0b1220;color:#fff}
-.topbar .wrap{display:flex;justify-content:space-between;align-items:center;font-size:14px}
-.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#e2e8f0;color:#0b1220;font-weight:600;font-size:12px}
-@media(max-width:900px){
-  .hero{grid-template-columns:1fr}
-  .grid-4{grid-template-columns:1fr 1fr}
-}
-@media(max-width:560px){
-  .grid-4{grid-template-columns:1fr}
-}
-</style>
+    :root{--text:#0b1220;--muted:#5b6472;--accent:#1e3a8a;--accent2:#2563eb;--bg:#ffffff;--surface:#f6f8fb;--border:#e5eaf1}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:#fff}
+    a{color:var(--accent)} a:hover{color:var(--accent2)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    header{position:sticky;top:0;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:10}
+    nav a{margin:0 10px;font-weight:600}
+    h1{font-size:44px;line-height:1.05;margin:0 0 8px}
+    h2{font-size:30px;margin:22px 0 8px}
+    .p{color:var(--muted)}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;padding:12px 18px;border-radius:12px;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px}
+    .table{width:100%;border-collapse:collapse} .table th,.table td{padding:10px;border-top:1px solid var(--border);text-align:left}
+    .price{font-weight:800;background:#111827;color:#fff;border-radius:12px;padding:8px 12px;display:inline-block}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#e2e8f0;color:#0b1220;font-weight:600;font-size:12px}
+    .section{padding:26px 0} .alt{background:var(--surface)}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
+    footer{background:var(--surface);border-top:1px solid var(--border);margin-top:40px}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr} h1{font-size:36px}}
+  </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="wrap"><span>📦 Skladem vybrané kusy</span><a href="#kontakt" style="color:#93c5fd">Rychlá poptávka</a></div>
-  </div>
   <header>
     <div class="wrap" style="display:flex;justify-content:space-between;align-items:center">
       <strong>ČECH‑LO</strong>
       <nav>
-        <a href="#produkt">Produkt</a>
-        <a href="#ofirme">O firmě</a>
+        <a href="#produkty">Produkty</a>
+        <a href="#parametry">Parametry</a>
         <a href="#kontakt">Kontakt</a>
       </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="hero" id="produkt">
+    <section style="display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center;padding:28px 0">
       <div>
-        <div class="badge">Minidumper LO50E</div>
-        <h1>Spolehlivý a výkonný&nbsp;minidumper</h1>
-        <p class="p">Robustní konstrukce, moderní elektropohon a maximální efektivita práce. Ideální pro stavebnictví, zahradnictví a zemědělství.</p>
-        <div class="kv" style="margin:12px 0 6px">
-          <span>Nosnost 500 kg</span><span>Hydraulické sklápění</span><span>48 V 1000 W</span><span>8–10 h výdrž</span>
-        </div>
-        <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
-          <a class="btn" href="#parametry">Musím vědět víc</a>
+        <div class="badge">Minidumpery pro těžkou práci</div>
+        <h1>Elektrický výkon nebo benzínová jednoduchost</h1>
+        <p class="p">Vyber si mezi tichým **LO50E** s hydraulickým vyklápěním a úsporným **LO30M** s benzínovým motorem a manuálním kiprem. Oba modely jsou stavěné na denní dřinu a snadnou obsluhu.</p>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <a class="btn" href="#produkty">Musím vědět víc</a>
           <a class="btn ghost" href="#kontakt">Mám zájem</a>
-          <span class="price">48&nbsp;900&nbsp;Kč <small>bez DPH</small></span>
         </div>
       </div>
-      <div class="card" style="min-height:280px;display:grid;place-items:center">
-        <em>Galerie produktu</em>
+      <div class="card" style="min-height:260px;display:grid;place-items:center"><em>Galerie produktu</em></div>
+    </section>
+
+    <section id="produkty" class="section alt">
+      <h2>Naše dva nejžádanější modely</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>LO50E – elektrický kolový minidumper</h3>
+          <p class="p">Robustní stavební pomocník s **48 V / 1000 W** pohonem, **elektromagnetickou brzdou** a **hydraulickým sklápěním**. Skvělý do hal i areálů, kde oceníš tichý provoz bez emisí.</p>
+          <ul class="p">
+            <li>**Nosnost:** 500 kg · **Objem korby:** 240 l</li>
+            <li>**Baterie:** 48 V 20/32 Ah (olovo) · **Výdrž:** 8–10 h · **Nabíjení:** 6–7 h</li>
+            <li>**Rychlosti:** 0–3.4 / 4.2 / 5.0 km/h</li>
+            <li>**Kiprování:** hydraulické na tlačítko</li>
+          </ul>
+          <div class="price">48 900 Kč <small style="opacity:.8;font-weight:600">bez DPH</small></div>
+        </div>
+        <div class="card">
+          <h3>LO30M – benzínový kolový minidumper</h3>
+          <p class="p">Jednoduché a odolné řešení s **196 cc / 4,8 kW** motorem a **3 rychlostmi vpřed + 1 vzad**. **Manuální sklápění** je rychlé a spolehlivé – ideální pro stavby a zahrady.</p>
+          <ul class="p">
+            <li>**Nosnost:** 300 kg · **Rozměr korby:** 940×635×330 mm</li>
+            <li>**Hlučnost:** 100 dB · **Hmotnost:** 145 kg</li>
+            <li>**Převodovka:** 3F + 1R</li>
+          </ul>
+          <div class="price">32 900 Kč <small style="opacity:.8;font-weight:600">bez DPH</small></div>
+        </div>
       </div>
     </section>
 
     <section id="parametry" class="section">
-      <h2>Podrobné parametry</h2>
-      <table class="table">
-        <tbody>
-          <tr><th>Model</th><td>Minidumper LO50E</td></tr>
-          <tr><th>Pohon</th><td>Stejnosměrný motor 1000 W / 48 V</td></tr>
-          <tr><th>Brzdný systém</th><td>Elektromagnetická brzda</td></tr>
-          <tr><th>Baterie</th><td>48 V 20 Ah / 32 Ah olověný akumulátor</td></tr>
-          <tr><th>Výdrž baterie</th><td>8–10 h</td></tr>
-          <tr><th>Nabíjecí čas</th><td>6–7 h</td></tr>
-          <tr><th>Nosnost</th><td>500 kg</td></tr>
-          <tr><th>Objem korby</th><td>240 l</td></tr>
-          <tr><th>Sklápění</th><td>Hydraulické</td></tr>
-          <tr><th>Rychlost</th><td>0–3.4 / 4.2 / 5.0 km/h</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section class="section alt">
-      <h2>Čím jsou naše produkty výjimečné?</h2>
-      <div class="grid-4">
-        <div class="card"><h3>Spolehlivost</h3><p class="p">Stroje jsou navrženy pro náročné podmínky a dlouhodobý výkon.</p></div>
-        <div class="card"><h3>Výkon</h3><p class="p">Silný tah a robustní konstrukce pro velké objemy materiálu.</p></div>
-        <div class="card"><h3>Flexibilita</h3><p class="p">Kompaktní rozměry pro práci v omezených prostorech.</p></div>
-        <div class="card"><h3>Nosnost</h3><p class="p">Až 500 kg a možnost pásového provedení pro náročný terén.</p></div>
+      <h2>Rychlý přehled parametrů</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-top:0">LO50E – klíčové údaje</h3>
+          <table class="table">
+            <tbody>
+              <tr><th>Motor</th><td>Bezkartáčový DC, 1000 W / 48 V</td></tr>
+              <tr><th>Brzda</th><td>Elektromagnetická</td></tr>
+              <tr><th>Baterie</th><td>48 V 20/32 Ah (olověná)</td></tr>
+              <tr><th>Výdrž / Nabíjení</th><td>8–10 h / 6–7 h</td></tr>
+              <tr><th>Nosnost</th><td>500 kg</td></tr>
+              <tr><th>Objem korby</th><td>240 l</td></tr>
+              <tr><th>Sklápění</th><td>Hydraulické</td></tr>
+              <tr><th>Rychlosti</th><td>0–3.4 / 4.2 / 5.0 km/h</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">LO30M – klíčové údaje</h3>
+          <table class="table">
+            <tbody>
+              <tr><th>Motor</th><td>196 cc, 4.8 kW @ 3600 rpm</td></tr>
+              <tr><th>Převodovka</th><td>3 vpřed + 1 vzad</td></tr>
+              <tr><th>Nosnost</th><td>300 kg</td></tr>
+              <tr><th>Korba</th><td>940 × 635 × 330 mm</td></tr>
+              <tr><th>Hlučnost</th><td>100 dB</td></tr>
+              <tr><th>Hmotnost</th><td>145 kg</td></tr>
+              <tr><th>Sklápění</th><td>Manuální</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
-    <section id="ofirme" class="section">
-      <h2>O firmě</h2>
-      <p class="p">V ČECH‑LO pečlivě sestavujeme a dodáváme motorové vozíky pro širokou škálu činností. Dbáme na kvalitu komponentů a přesnou montáž, aby stroje splnily očekávání i nároky našich zákazníků.</p>
-    </section>
-
-    <section id="kontakt" class="section">
-      <h2>Poptávkový formulář</h2>
-      <form class="card" method="post" action="https://formsubmit.co/info.cechlo@gmail.com" onsubmit="try{localStorage.setItem('formSent','1')}catch(e){}">
+    <section id="kontakt" class="section alt">
+      <h2>Poptávka</h2>
+      <p class="p">Napiš nám, který model a jaké použití řešíš (stavba, farma, sklad). Odpovíme do 24 h.</p>
+      <form class="card" method="post" action="https://formsubmit.co/info.cechlo@gmail.com">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div><label>Jméno<input required name="name" placeholder="Jan Novák"></label></div>
           <div><label>Telefon<input required name="phone" placeholder="+420…"></label></div>
           <div style="grid-column:1/-1"><label>E‑mail<input required type="email" name="email" placeholder="jmeno@firma.cz"></label></div>
-          <div><label>Model<select name="model"><option>LO50E</option><option>Nejsem si jistý/á</option></select></label></div>
+          <div><label>Model<select name="model"><option>LO50E</option><option>LO30M</option><option>Nejsem si jistý/á</option></select></label></div>
           <div><label>Použití<select name="use"><option>Stavba</option><option>Farma</option><option>Sklad/areál</option><option>Jiné</option></select></label></div>
           <div style="grid-column:1/-1"><label>Zpráva<textarea name="message" rows="4" placeholder="Co převážíte, jak často, terén…"></textarea></label></div>
         </div>
