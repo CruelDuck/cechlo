@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Čechlo – Elektrické minidumpery</title>
+  <meta name="description" content="Elektrické minidumpery Čechlo. Poptávkový formulář, ceník a kontakt.">
+  <meta name="theme-color" content="#0ea5e9">
+  <script>
+    // GA4 placeholder (replace G-XXXX with your ID or remove if unused)
+    // window.dataLayer = window.dataLayer || [];
+    // function gtag(){dataLayer.push(arguments);}
+    // gtag('js', new Date());
+    // gtag('config', 'G-XXXXXXX');
+  </script>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;color:#0b1220}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eef2f7}
+    .wrap{max-width:1000px;margin:0 auto;padding:16px}
+    .btn{background:#0ea5e9;color:#fff;border:none;padding:12px 18px;border-radius:12px;cursor:pointer}
+    input,select,textarea{width:100%;padding:10px;border:1px solid #d7dbe2;border-radius:10px}
+    .card{background:#fff;border:1px solid #eef2f7;border-radius:16px;padding:16px}
+    footer{background:#f7f9fc;border-top:1px solid #eef2f7;margin-top:40px}
+    .notice{position:fixed;left:12px;right:12px;bottom:12px;background:#0b1220;color:#fff;padding:14px;border-radius:12px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;">
+      <strong>Čechlo</strong>
+      <nav style="display:flex;gap:12px;font-size:14px">
+        <a href="#produkty">Produkty</a>
+        <a href="#kontakt">Kontakt</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h1 style="font-size:40px;line-height:1.1;margin:24px 0 8px">Elektrické minidumpery Čechlo</h1>
+      <p style="color:#5b6472;max-width:720px">Tichý provoz, nosnost až 500 kg, servis v ČR. Získejte nabídku na míru – vyplňte krátký formulář.</p>
+      <div style="display:flex;gap:12px;margin:18px 0">
+        <a class="btn" href="#kontakt">Získat nabídku</a>
+        <a class="btn" style="background:#0b1220" href="#produkty">Prohlédnout modely</a>
+      </div>
+    </section>
+
+    <section id="produkty" style="margin-top:28px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+      <div class="card"><h3>Mini 300</h3><p>300 kg • 24 V • až 6 h</p><strong>od 39 900 Kč</strong></div>
+      <div class="card"><h3>Agro 400</h3><p>400 kg • 36 V • až 7 h</p><strong>od 54 900 Kč</strong></div>
+      <div class="card"><h3>Pro 500</h3><p>500 kg • 48 V • až 8 h</p><strong>od 69 900 Kč</strong></div>
+    </section>
+
+    <section id="kontakt" style="margin-top:32px">
+      <h2>Poptávka</h2>
+      <p style="color:#5b6472">Vyplňte kontakty a stručně popište využití (stavba, farma, sklad). Odpovíme do 24 h.</p>
+      <form class="card" method="post" action="https://formsubmit.co/info.cechlo@gmail.com" onsubmit="try{window.localStorage.setItem('formSent','1')}catch(e){}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div><label>Jméno<input required name="name" placeholder="Jan Novák"></label></div>
+          <div><label>Telefon<input required name="phone" placeholder="+420…"></label></div>
+          <div style="grid-column:1/-1"><label>E‑mail<input required type="email" name="email" placeholder="jmeno@firma.cz"></label></div>
+          <div><label>Model<select name="model"><option>Mini 300</option><option>Agro 400</option><option>Pro 500</option><option>Nejsem si jistý/á</option></select></label></div>
+          <div><label>Použití<select name="use"><option>Stavba</option><option>Farma</option><option>Sklad/areál</option><option>Jiné</option></select></label></div>
+          <div style="grid-column:1/-1"><label>Zpráva<textarea name="message" rows="4" placeholder="Co převážíte, jak často, terén…"></textarea></label></div>
+        </div>
+        <!-- honeypot -->
+        <input type="text" name="_honey" class="hidden" tabindex="-1" autocomplete="off">
+        <!-- redirect after submit -->
+        <input type="hidden" name="_next" value="/dekuji.html">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+          <label style="font-size:14px"><input type="checkbox" required> Souhlasím se zpracováním údajů</label>
+          <button class="btn">Odeslat</button>
+        </div>
+        <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_subject" value="Nová poptávka – Čechlo">
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:24px 16px">
+      <div>© <span id="y"></span> Čechlo</div>
+      <div><a href="/zasady.html">Zásady zpracování</a></div>
+    </div>
+  </footer>
+
+  <!-- Cookie notice -->
+  <div id="cookie" class="notice hidden">
+    Tento web používá pouze nezbytné cookies. <a href="/zasady.html" style="color:#93c5fd">Více</a>
+    <button class="btn" style="margin-left:12px;background:#10b981" onclick="document.getElementById('cookie').classList.add('hidden');localStorage.setItem('cookieOK','1')">OK</button>
+  </div>
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+    try {
+      if(!localStorage.getItem('cookieOK')) document.getElementById('cookie').classList.remove('hidden');
+    } catch(e){}
+  </script>
+</body>
+</html>
