@@ -1,11 +1,14 @@
 // lib/supabaseServer.ts
-import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-// import type { Database } from '@/lib/database.types'; // až budeš mít vygenerované typy
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  // Tohle se zaloguje ve Vercel logs, kdyby bylo něco špatně s env
+  console.error("Missing Supabase env variables");
+}
 
 export function createSupabaseServerClient() {
-  // createServerComponentClient si s cookies poradí sám
-  return createServerComponentClient({
-    cookies,
-  });
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
