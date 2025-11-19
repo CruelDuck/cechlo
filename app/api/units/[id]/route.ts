@@ -44,13 +44,32 @@ export async function PATCH(
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const form = await req.formData();
+   const form = await req.formData();
 
-    const updateData: any = {
-      model: form.get("model") || null,
-      status: form.get("status") || "in_stock",
-      note: form.get("note") || null,
-      currency: form.get("currency") || "CZK",
+const updateData: any = {
+  model: form.get("model") || null,
+  status: form.get("status") || "in_stock",
+  note: form.get("note") || null,
+  currency: form.get("currency") || "CZK",
+};
+
+// výrobní cena
+const purchase_price = form.get("purchase_price");
+const purchase_date = form.get("purchase_date");
+const purchase_currency = form.get("purchase_currency");
+
+updateData.purchase_price = purchase_price ? Number(purchase_price) : null;
+updateData.purchase_date = purchase_date || null;
+updateData.purchase_currency = purchase_currency || "CZK";
+
+// prodejní cena
+const sale_price = form.get("sale_price");
+const sale_date = form.get("sale_date");
+const customer_id = form.get("customer_id");
+
+updateData.sale_price = sale_price ? Number(sale_price) : null;
+updateData.sale_date = sale_date || null;
+updateData.customer_id = customer_id || null;
     };
 
     const sale_price = form.get("sale_price");
