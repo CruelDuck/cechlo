@@ -1,7 +1,8 @@
-// app/api/customers/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+
+export const runtime = "nodejs";
 
 type CustomerStatus =
   | "lead"
@@ -24,9 +25,49 @@ function isValidStatus(value: unknown): value is CustomerStatus {
   );
 }
 
-// jistota, že běžíme v Node runtime
-export const runtime = "nodejs";
+function getSupabase() {
+  return createRouteHandlerClient({
+    cookies,
+  });
+}
 
+// ------- GET /api/customers  – seznam kontaktů -------
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    const url = new URL(req.url);
+    const statusRaw = url.searchParams.get("status");
+
+    let query = supabase
+      .from("customers")
+      .select("id, name, city, phone, status")
+      .order("created_at", { ascending: false });
+
+    if (statusRaw && isValidStatus(statusRaw)) {
+      query = query.eq("status", statusRaw);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Supabase GET /customers error:", error);
+      return NextResponse.json(
+        { error: error.message ?? "Chyba při načítání kontaktů." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(data ?? []);
+  } catch (e: any) {
+    console.error("Unexpected error in GET /api/customers:", e);
+    return NextResponse.json(
+      { error: "Interní chyba serveru při načítání kontaktů." },
+      { status: 500 }
+    );
+  }
+}
+
+// ------- POST /api/customers  – vytvoření kontaktu -------
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -54,9 +95,7 @@ export async function POST(req: NextRequest) {
       ? statusCandidate
       : "lead";
 
-    const supabase = createRouteHandlerClient({
-      cookies,
-    });
+    const supabase = getSupabase();
 
     const { error } = await supabase.from("customers").insert([
       {
@@ -72,7 +111,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (error) {
-      console.error("Supabase insert error:", error);
+      console.error("Supabase INSERT /customers error:", error);
       return NextResponse.json(
         { error: error.message ?? "Chyba při ukládání do databáze." },
         { status: 500 }
@@ -81,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Unexpected error in /api/customers:", err);
+    console.error("Unexpected error in POST /api/customers:", err);
     return NextResponse.json(
       { error: "Interní chyba serveru." },
       { status: 500 }
