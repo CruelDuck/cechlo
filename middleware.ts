@@ -1,21 +1,15 @@
 // middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
-        },
-      },
-    }
-  );
+
+  const supabase = createMiddlewareClient({
+    req,
+    res,
+  });
 
   const {
     data: { session },
@@ -23,7 +17,7 @@ export async function middleware(req: NextRequest) {
 
   const isAuthPage = req.nextUrl.pathname.startsWith('/login');
 
-  // není přihlášený a jde na chráněnou stránku → pošli na /login
+  // Nepřihlášený uživatel a snaží se na chráněnou stránku -> pošli na /login
   if (!session && !isAuthPage) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = '/login';
@@ -31,7 +25,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // už přihlášený a jde na /login → pošli na /
+  // Přihlášený uživatel jde na /login -> pošli ho na /
   if (session && isAuthPage) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = '/';
@@ -42,7 +36,6 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-// Na které cesty se middleware aplikuje
 export const config = {
-  matcher: ['/', '/customers/:path*'], // sem přidáš i /units, /sales atd.
+  matcher: ['/', '/customers/:path*'], // sem později přidáš /units, /sales atd.
 };
