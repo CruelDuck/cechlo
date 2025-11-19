@@ -1,130 +1,127 @@
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import type { Customer, CustomerStatus } from '@/lib/types';
+import Link from "next/link";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-async function getCustomers(status?: CustomerStatus): Promise<Customer[]> {
+type Status = "lead" | "qualified" | "negotiation" | "proposal" | "won" | "lost" | "customer";
+
+async function getCustomers(status?: Status) {
   const supabase = createSupabaseServerClient();
+
   let query = supabase
-    .from('customers')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .from("customers")
+    .select("id, name, city, phone, status")
+    .order("created_at", { ascending: false });
 
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq("status", status);
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error loading customers', error);
-    return [];
-  }
-
-  return (data ?? []) as Customer[];
+  const { data } = await query;
+  return data ?? [];
 }
 
 export default async function CustomersPage({
-  searchParams
+  searchParams,
 }: {
-  searchParams?: { status?: CustomerStatus };
+  searchParams?: { status?: Status };
 }) {
   const status = searchParams?.status;
   const customers = await getCustomers(status);
 
   return (
-    <main className="space-y-4">
-      <header className="flex items-center justify-between">
+    <main className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Zákazníci &amp; leadi</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Kontakty</h2>
           <p className="text-sm text-gray-500">
-            Přehled všech kontaktů – můžeš filtrovat podle stavu.
+            Kompletní seznam všech kontaktů a leadů.
           </p>
         </div>
-        <a
+
+        <Link
           href="/customers/new"
           className="px-4 py-2 rounded-md border text-sm font-medium bg-white hover:bg-gray-50"
         >
           + Nový kontakt
-        </a>
+        </Link>
       </header>
 
-      <div className="flex gap-2 text-sm">
-        <a
-          href="/customers"
-          className={`px-3 py-1 rounded-full border ${
-            !status ? 'bg-gray-900 text-white' : 'bg-white'
-          }`}
-        >
-          Všichni
-        </a>
-        <a
-          href="/customers?status=lead"
-          className={`px-3 py-1 rounded-full border ${
-            status === 'lead' ? 'bg-gray-900 text-white' : 'bg-white'
-          }`}
-        >
-          Leadi
-        </a>
-        <a
+      {/* Filtry */}
+      <div className="flex items-center gap-2 text-sm">
+        <FilterButton label="Všichni" href="/customers" active={!status} />
+        <FilterButton label="Lead" href="/customers?status=lead" active={status === "lead"} />
+        <FilterButton
+          label="Qualified"
+          href="/customers?status=qualified"
+          active={status === "qualified"}
+        />
+        <FilterButton
+          label="Negotiation"
+          href="/customers?status=negotiation"
+          active={status === "negotiation"}
+        />
+        <FilterButton
+          label="Customer"
           href="/customers?status=customer"
-          className={`px-3 py-1 rounded-full border ${
-            status === 'customer' ? 'bg-gray-900 text-white' : 'bg-white'
-          }`}
-        >
-          Zákazníci
-        </a>
+          active={status === "customer"}
+        />
       </div>
 
-      <section className="rounded-lg border bg-white divide-y">
-        {customers.length === 0 && (
-          <div className="p-4 text-sm text-gray-500">Žádná data k zobrazení.</div>
-        )}
+      {/* Tabulka */}
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr className="text-left">
+              <th className="py-2 px-3 font-medium text-gray-700">Jméno</th>
+              <th className="py-2 px-3 font-medium text-gray-700">Město</th>
+              <th className="py-2 px-3 font-medium text-gray-700">Telefon</th>
+              <th className="py-2 px-3 font-medium text-gray-700">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {customers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-4 text-center text-gray-500">
+                  Žádné kontakty
+                </td>
+              </tr>
+            )}
 
-        {customers.map((c) => (
-          <div
-            key={c.id}
-            className="p-4 flex items-center justify-between hover:bg-gray-50"
-          >
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{c.name}</span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${
-                    c.status === 'lead'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}
-                >
-                  {c.status === 'lead' ? 'Lead' : 'Zákazník'}
-                </span>
-                {c.is_hot && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                    HOT
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 flex flex-wrap gap-4">
-                {c.phone && <span>{c.phone}</span>}
-                {c.email && <span>{c.email}</span>}
-                {c.city && <span>{c.city}</span>}
-              </div>
-            </div>
-            <div className="text-right text-xs text-gray-500 space-y-1">
-              {c.next_action_at && (
-                <div>
-                  Další akce:{' '}
-                  <span className="font-medium">
-                    {new Date(c.next_action_at).toLocaleDateString('cs-CZ')}
-                  </span>
-                </div>
-              )}
-              <div>
-                Vytvořeno:{' '}
-                {new Date(c.created_at).toLocaleDateString('cs-CZ')}
-              </div>
-            </div>
-          </div>
-        ))}
-      </section>
+            {customers.map((c) => (
+              <tr
+                key={c.id}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => (window.location.href = `/customers/${c.id}`)}
+              >
+                <td className="py-2 px-3">{c.name}</td>
+                <td className="py-2 px-3">{c.city ?? "-"}</td>
+                <td className="py-2 px-3">{c.phone ?? "-"}</td>
+                <td className="py-2 px-3 capitalize">{c.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </main>
+  );
+}
+
+function FilterButton({
+  label,
+  href,
+  active,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`px-3 py-1 rounded-full border ${
+        active ? "bg-gray-900 text-white" : "bg-white hover:bg-gray-50"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
