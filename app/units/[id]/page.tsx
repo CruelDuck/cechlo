@@ -6,6 +6,12 @@ import Link from "next/link";
 
 type UnitStatus = "in_stock" | "sold" | "reserved" | "demo" | "scrapped";
 
+type CustomerOption = {
+  id: string;
+  name: string;
+  city: string | null;
+};
+
 function statusLabel(status: UnitStatus) {
   switch (status) {
     case "in_stock":
@@ -38,20 +44,23 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const [purchasePrice, setPurchasePrice] = useState<string>("");
   const [purchaseDate, setPurchaseDate] = useState<string>("");
 
+  const [customerId, setCustomerId] = useState<string>("");
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [customersError, setCustomersError] = useState<string | null>(null);
+
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
         setError(null);
 
+        // 1) detail jednotky
         const res = await fetch(`/api/units/${params.id}`);
-
         if (!res.ok) {
           const payload = await res.json().catch(() => null);
           setError(payload?.error ?? "Nepodařilo se načíst vozík.");
           return;
         }
-
         const data = await res.json();
         setUnit(data);
         setNote(data.note || "");
@@ -60,12 +69,28 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           data.sale_price != null ? String(data.sale_price) : ""
         );
         setSaleDate(data.sale_date || "");
-
-        // doplnění výrobní ceny a data nákupu
         setPurchasePrice(
           data.purchase_price != null ? String(data.purchase_price) : ""
         );
         setPurchaseDate(data.purchase_date || "");
+        setCustomerId(data.customer_id || "");
+
+        // 2) načíst seznam zákazníků pro dropdown
+        const resCustomers = await fetch("/api/customers");
+        if (!resCustomers.ok) {
+          const payload = await resCustomers.json().catch(() => null);
+          setCustomersError(
+            payload?.error ?? "Nepodařilo se načíst zákazníky."
+          );
+        } else {
+          const list = (await resCustomers.json()) as any[];
+          const options: CustomerOption[] = list.map((c) => ({
+            id: c.id,
+            name: c.name,
+            city: c.city ?? null,
+          }));
+          setCustomers(options);
+        }
       } catch (e) {
         console.error(e);
         setError("Neočekávaná chyba při načítání vozíku.");
@@ -93,12 +118,18 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     // prodejní informace
     if (salePrice) formData.append("sale_price", salePrice);
     if (saleDate) formData.append("sale_date", saleDate);
-    if (unit.customer_id) formData.append("customer_id", unit.customer_id);
+
+    // zákazník (může být prázdný)
+    if (customerId) {
+      formData.append("customer_id", customerId);
+    } else {
+      formData.append("customer_id", "");
+    }
 
     // výrobní informace
     if (purchasePrice) formData.append("purchase_price", purchasePrice);
     if (purchaseDate) formData.append("purchase_date", purchaseDate);
-    formData.append("purchase_currency", unit.purchase_currency || "CZK");
+    formData.append("purchase_currency", unit?.purchase_currency || "CZK");
 
     const res = await fetch(`/api/units/${unit.id}`, {
       method: "PATCH",
@@ -124,6 +155,11 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     return <div className="p-4 text-red-700">{error || "Chyba"}</div>;
   }
 
+  const currentCustomerName =
+    unit.customer?.name && unit.customer?.city
+      ? `${unit.customer.name} (${unit.customer.city})`
+      : unit.customer?.name || null;
+
   return (
     <main className="space-y-6 max-w-2xl">
       <header className="flex items-center justify-between">
@@ -134,6 +170,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           <p className="text-sm text-gray-500">
             {unit.model || "Neznámý model"} • {statusLabel(unit.status)}
           </p>
+          {currentCustomerName && (
+            <p className="text-sm text-gray-600">
+              Zákazník:{" "}
+              <span className="font-medium">{currentCustomerName}</span>
+            </p>
+          )}
         </div>
 
         <Link
@@ -147,6 +189,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       <section className="space-y-2">
         <h3 className="font-medium">Prodejní a výrobní informace</h3>
         <form onSubmit={handleSave} className="space-y-4">
+          {/* Stav + prodej */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
@@ -191,6 +234,31 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             </div>
           </div>
 
+          {/* Zákazník */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Zákazník
+            </label>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">– Nepřiřazen –</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.city ? ` (${c.city})` : ""}
+                </option>
+              ))}
+            </select>
+            {customersError && (
+              <p className="text-xs text-red-600 mt-1">
+                {customersError}
+              </p>
+            )}
+          </div>
+
           {/* Výrobní cena + nákup */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -218,6 +286,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             </div>
           </div>
 
+          {/* Poznámka */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Poznámka k vozíku
