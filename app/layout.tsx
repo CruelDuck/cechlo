@@ -1,50 +1,81 @@
-// app/layout.tsx
-import './globals.css';
-import type { ReactNode } from 'react';
-import { LogoutButton } from '@/components/LogoutButton';
+import "./globals.css";
+import Link from "next/link";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Database } from "@/types/supabase";
 
 export const metadata = {
-  title: 'Čechlo Inventory',
-  description: 'Evidence vozíků, zákazníků, leadů a prodejů pro Čechlo',
+  title: "Čechlo Inventory",
+  description: "Interní správa vozíků, kontaktů a skladových zásob.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+function NavLink({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  const active =
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith(href);
+
+  return (
+    <Link
+      href={href}
+      className={`px-3 py-2 rounded-md text-sm font-medium transition
+      ${active ? "bg-white text-black" : "text-gray-200 hover:bg-gray-800"}
+      `}
+    >
+      {label}
+    </Link>
+  );
+}
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = createServerComponentClient<Database>({ cookies });
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   return (
     <html lang="cs">
-      <body className="min-h-screen bg-gray-50 text-gray-900">
-        <div className="max-w-5xl mx-auto p-4">
-          <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">
-                Čechlo Inventory
-              </h1>
-              <p className="text-xs text-gray-500">
-                Interní systém pro evidenci vozíků, zákazníků a leadů
-              </p>
-            </div>
+      <body className="bg-gray-100">
+        {/* TOP BAR */}
+        {session && (
+          <header className="bg-black text-white shadow-md">
+            <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+              {/* LEFT */}
+              <div className="flex items-center gap-6">
+                <h1 className="text-lg font-semibold tracking-tight">
+                  Čechlo
+                </h1>
 
-            <div className="flex items-center gap-4 justify-between sm:justify-end">
-           
-              <nav className="flex gap-4 text-sm">
-  <a href="/" className="hover:underline">
-    Dashboard
-  </a>
-  <a href="/customers" className="hover:underline">
-    Zákazníci &amp; leadi
-  </a>
-  <a href="/units" className="hover:underline">
-    Vozíky
-  </a>
-</nav>
+                <nav className="hidden sm:flex items-center gap-1">
+                  <NavLink href="/units" label="Vozíky" />
+                  <NavLink href="/customers" label="Kontakty" />
+                  <NavLink href="/parts" label="Sklad" />
+                  <NavLink href="/newsletter" label="Newsletter" />
+                </nav>
+              </div>
 
-              {
-              <LogoutButton />
-              }
+              {/* RIGHT */}
+              <form action="/auth/signout" method="post">
+                <button className="text-gray-300 hover:text-white text-sm">
+                  Odhlásit se
+                </button>
+              </form>
             </div>
           </header>
+        )}
 
-          <main>{children}</main>
-        </div>
+        {/* MAIN CONTENT */}
+        <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
       </body>
     </html>
   );
