@@ -1,6 +1,7 @@
 // app/layout.tsx
 import './globals.css';
 import type { ReactNode } from 'react';
+import { LogoutButton } from '@/components/LogoutButton';
 
 export const metadata = {
   title: 'Čechlo Inventory',
@@ -23,20 +24,22 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-4 justify-between sm:justify-end">
+           
               <nav className="flex gap-4 text-sm">
-                <a href="/" className="hover:underline">
-                  Dashboard
-                </a>
-                <a href="/customers" className="hover:underline">
-                  Zákazníci &amp; leadi
-                </a>
-                {/* Sem později klidně přidáme /units, /sales atd. */}
-              </nav>
+  <a href="/" className="hover:underline">
+    Dashboard
+  </a>
+  <a href="/customers" className="hover:underline">
+    Zákazníci &amp; leadi
+  </a>
+  <a href="/units" className="hover:underline">
+    Vozíky
+  </a>
+</nav>
 
-              {/* 
-              Až budeš mít LogoutButton (client komponentu), můžeš sem dát:
+              {
               <LogoutButton />
-              */}
+              }
             </div>
           </header>
 
