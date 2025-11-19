@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
+
 type Status = "lead" | "qualified" | "negotiation" | "proposal" | "won" | "lost" | "customer";
 
 async function getCustomers(status?: Status) {
