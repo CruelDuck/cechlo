@@ -1,6 +1,8 @@
-// app/customers/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { useSearchParams, useRouter } from "next/navigation";
 
 type Status =
   | "lead"
@@ -19,43 +21,61 @@ type CustomerRow = {
   status: Status;
 };
 
-async function getCustomers(status?: Status): Promise<{
-  data: CustomerRow[];
-  error: string | null;
-}> {
-  try {
-    const supabase = createSupabaseServerClient();
+export default function CustomersPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const status = (searchParams.get("status") as Status | null) || null;
 
-    let query = supabase
-      .from("customers")
-      .select("id, name, city, phone, status")
-      .order("created_at", { ascending: false });
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    if (status) {
-      query = query.eq("status", status);
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const query = status ? `?status=${status}` : "";
+        const res = await fetch(`/api/customers${query}`);
+
+        if (!res.ok) {
+          const payload = (await res.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          setError(payload?.error ?? "Nepodařilo se načíst kontakty.");
+          setCustomers([]);
+        } else {
+          const data = (await res.json()) as CustomerRow[];
+          setCustomers(data);
+        }
+      } catch (e) {
+        console.error("Fetch /api/customers error:", e);
+        setError("Neočekávaná chyba při načítání kontaktů.");
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    const { data, error } = await query;
+    load();
+  }, [status]);
 
-    if (error) {
-      console.error("Supabase error in getCustomers:", error);
-      return { data: [], error: error.message ?? "Neznámá chyba Supabase" };
+  function setFilter(newStatus: Status | null) {
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (!newStatus) {
+      params.delete("status");
+    } else {
+      params.set("status", newStatus);
     }
 
-    return { data: (data ?? []) as CustomerRow[], error: null };
-  } catch (e: any) {
-    console.error("Unexpected error in getCustomers:", e);
-    return { data: [], error: "Neočekávaná chyba serveru při načítání kontaktů." };
+    const qs = params.toString();
+    router.push(`/customers${qs ? `?${qs}` : ""}`);
   }
-}
 
-export default async function CustomersPage({
-  searchParams,
-}: {
-  searchParams?: { status?: Status };
-}) {
-  const status = searchParams?.status;
-  const { data: customers, error } = await getCustomers(status);
+  function handleRowClick(id: string) {
+    router.push(`/customers/${id}`);
+  }
 
   return (
     <main className="space-y-6">
@@ -77,30 +97,43 @@ export default async function CustomersPage({
 
       {/* Filtry */}
       <div className="flex items-center gap-2 text-sm">
-        <FilterButton label="Všichni" href="/customers" active={!status} />
-        <FilterButton label="Lead" href="/customers?status=lead" active={status === "lead"} />
+        <FilterButton
+          label="Všichni"
+          active={!status}
+          onClick={() => setFilter(null)}
+        />
+        <FilterButton
+          label="Lead"
+          active={status === "lead"}
+          onClick={() => setFilter("lead")}
+        />
         <FilterButton
           label="Qualified"
-          href="/customers?status=qualified"
           active={status === "qualified"}
+          onClick={() => setFilter("qualified")}
         />
         <FilterButton
           label="Negotiation"
-          href="/customers?status=negotiation"
           active={status === "negotiation"}
+          onClick={() => setFilter("negotiation")}
         />
         <FilterButton
           label="Customer"
-          href="/customers?status=customer"
           active={status === "customer"}
+          onClick={() => setFilter("customer")}
         />
       </div>
 
-      {/* Chybová hláška */}
+      {/* Chyba */}
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          Chyba při načítání kontaktů: {error}
+          {error}
         </div>
+      )}
+
+      {/* Loading */}
+      {loading && !error && (
+        <div className="text-sm text-gray-500">Načítám kontakty…</div>
       )}
 
       {/* Tabulka */}
@@ -115,7 +148,7 @@ export default async function CustomersPage({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {customers.length === 0 && !error && (
+            {!loading && !error && customers.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-center text-gray-500">
                   Žádné kontakty
@@ -127,7 +160,7 @@ export default async function CustomersPage({
               <tr
                 key={c.id}
                 className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => (window.location.href = `/customers/${c.id}`)}
+                onClick={() => handleRowClick(c.id)}
               >
                 <td className="py-2 px-3">{c.name}</td>
                 <td className="py-2 px-3">{c.city ?? "-"}</td>
@@ -144,21 +177,22 @@ export default async function CustomersPage({
 
 function FilterButton({
   label,
-  href,
   active,
+  onClick,
 }: {
   label: string;
-  href: string;
   active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
+      onClick={onClick}
       className={`px-3 py-1 rounded-full border ${
         active ? "bg-gray-900 text-white" : "bg-white hover:bg-gray-50"
       }`}
     >
       {label}
-    </Link>
+    </button>
   );
 }
