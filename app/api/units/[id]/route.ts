@@ -14,7 +14,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("units")
       .select(
-        "id, serial_number, model, status, sale_date, sale_price, currency, note, customer_id"
+        "id, serial_number, model, status, sale_date, sale_price, currency, note, customer_id, purchase_price, purchase_currency, purchase_date"
       )
       .eq("id", params.id)
       .single();
@@ -37,47 +37,58 @@ export async function GET(
   }
 }
 
-// PATCH /api/units/[id] – úprava (poznámka, prodejní info, status)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-   const form = await req.formData();
+    const form = await req.formData();
 
-const updateData: any = {
-  model: form.get("model") || null,
-  status: form.get("status") || "in_stock",
-  note: form.get("note") || null,
-  currency: form.get("currency") || "CZK",
-};
-
-// výrobní cena
-const purchase_price = form.get("purchase_price");
-const purchase_date = form.get("purchase_date");
-const purchase_currency = form.get("purchase_currency");
-
-updateData.purchase_price = purchase_price ? Number(purchase_price) : null;
-updateData.purchase_date = purchase_date || null;
-updateData.purchase_currency = purchase_currency || "CZK";
-
-// prodejní cena
-const sale_price = form.get("sale_price");
-const sale_date = form.get("sale_date");
-const customer_id = form.get("customer_id");
-
-updateData.sale_price = sale_price ? Number(sale_price) : null;
-updateData.sale_date = sale_date || null;
-updateData.customer_id = customer_id || null;
+    const updateData: any = {
+      model: form.get("model") || null,
+      status: form.get("status") || "in_stock",
+      note: form.get("note") || null,
+      currency: form.get("currency") || "CZK",
     };
 
+    // výrobní info
+    const purchase_price = form.get("purchase_price");
+    const purchase_date = form.get("purchase_date");
+    const purchase_currency = form.get("purchase_currency");
+
+    if (purchase_price !== null && purchase_price !== "") {
+      updateData.purchase_price = Number(purchase_price);
+    } else {
+      updateData.purchase_price = null;
+    }
+
+    if (purchase_date !== null && purchase_date !== "") {
+      updateData.purchase_date = purchase_date;
+    } else {
+      updateData.purchase_date = null;
+    }
+
+    updateData.purchase_currency =
+      (purchase_currency as string | null) || "CZK";
+
+    // prodejní info
     const sale_price = form.get("sale_price");
     const sale_date = form.get("sale_date");
     const customer_id = form.get("customer_id");
 
-    updateData.sale_price = sale_price ? Number(sale_price) : null;
-    updateData.sale_date = sale_date || null;
+    if (sale_price !== null && sale_price !== "") {
+      updateData.sale_price = Number(sale_price);
+    } else {
+      updateData.sale_price = null;
+    }
+
+    if (sale_date !== null && sale_date !== "") {
+      updateData.sale_date = sale_date;
+    } else {
+      updateData.sale_date = null;
+    }
+
     updateData.customer_id = customer_id || null;
 
     const { error } = await supabase
