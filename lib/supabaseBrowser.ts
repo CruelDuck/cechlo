@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+// lib/supabaseBrowser.ts
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
+// import type { Database } from '@/lib/database.types'; // až budeš mít typy z Supabase
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey);
+// Pro jednoduchost bez typů, helper si vezme URL a key z env proměnných
+export const supabaseBrowser = createBrowserSupabaseClient();
