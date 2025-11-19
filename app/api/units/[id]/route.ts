@@ -11,10 +11,29 @@ export async function GET(
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
+    // načteme jednotku + připojeného zákazníka
     const { data, error } = await supabase
       .from("units")
       .select(
-        "id, serial_number, model, status, sale_date, sale_price, currency, note, customer_id, purchase_price, purchase_currency, purchase_date"
+        `
+        id,
+        serial_number,
+        model,
+        status,
+        sale_date,
+        sale_price,
+        currency,
+        note,
+        customer_id,
+        purchase_price,
+        purchase_currency,
+        purchase_date,
+        customer:customers (
+          id,
+          name,
+          city
+        )
+      `
       )
       .eq("id", params.id)
       .single();
@@ -89,7 +108,8 @@ export async function PATCH(
       updateData.sale_date = null;
     }
 
-    updateData.customer_id = customer_id || null;
+    updateData.customer_id =
+      customer_id && String(customer_id).length > 0 ? customer_id : null;
 
     const { error } = await supabase
       .from("units")
