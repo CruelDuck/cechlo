@@ -1,19 +1,11 @@
 // lib/supabaseServer.ts
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+// import type { Database } from '@/lib/database.types'; // až budeš mít vygenerované typy
 
 export function createSupabaseServerClient() {
-  const cookieStore = cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  // createServerComponentClient si s cookies poradí sám
+  return createServerComponentClient({
+    cookies,
+  });
 }
