@@ -35,6 +35,9 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const [salePrice, setSalePrice] = useState<string>("");
   const [saleDate, setSaleDate] = useState<string>("");
 
+  const [purchasePrice, setPurchasePrice] = useState<string>("");
+  const [purchaseDate, setPurchaseDate] = useState<string>("");
+
   useEffect(() => {
     async function load() {
       try {
@@ -57,6 +60,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           data.sale_price != null ? String(data.sale_price) : ""
         );
         setSaleDate(data.sale_date || "");
+
+        // doplnění výrobní ceny a data nákupu
+        setPurchasePrice(
+          data.purchase_price != null ? String(data.purchase_price) : ""
+        );
+        setPurchaseDate(data.purchase_date || "");
       } catch (e) {
         console.error(e);
         setError("Neočekávaná chyba při načítání vozíku.");
@@ -80,9 +89,16 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     formData.append("status", status);
     formData.append("note", note);
     formData.append("currency", unit.currency || "CZK");
+
+    // prodejní informace
     if (salePrice) formData.append("sale_price", salePrice);
     if (saleDate) formData.append("sale_date", saleDate);
     if (unit.customer_id) formData.append("customer_id", unit.customer_id);
+
+    // výrobní informace
+    if (purchasePrice) formData.append("purchase_price", purchasePrice);
+    if (purchaseDate) formData.append("purchase_date", purchaseDate);
+    formData.append("purchase_currency", unit.purchase_currency || "CZK");
 
     const res = await fetch(`/api/units/${unit.id}`, {
       method: "PATCH",
@@ -129,7 +145,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       </header>
 
       <section className="space-y-2">
-        <h3 className="font-medium">Prodejní informace</h3>
+        <h3 className="font-medium">Prodejní a výrobní informace</h3>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -170,6 +186,33 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                 step="0.01"
                 value={salePrice}
                 onChange={(e) => setSalePrice(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Výrobní cena + nákup */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Výrobní / nákupní cena (Kč)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Datum nákupu
+              </label>
+              <input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               />
             </div>
