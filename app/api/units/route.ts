@@ -13,12 +13,10 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status") as UnitStatus | null;
 
-let query = supabase
-  .from("units")
-  .select(
-    "id, serial_number, model, status, prep_status, sale_date, sale_price"
-  )
-  .order("created_at", { ascending: false });
+    let query = supabase
+      .from("units")
+      .select("id, serial_number, model, status, prep_status, sale_date, sale_price")
+      .order("created_at", { ascending: false });
 
     if (status) {
       query = query.eq("status", status);
@@ -29,7 +27,7 @@ let query = supabase
     if (error) {
       console.error("GET /api/units error:", error);
       return NextResponse.json(
-        { error: error.message ?? "Chyba při načítání vozíků." },
+        { error: "Nepodařilo se načíst vozíky." },
         { status: 500 }
       );
     }
@@ -66,6 +64,8 @@ export async function POST(req: NextRequest) {
         serial_number,
         model,
         note,
+        // status: default 'in_stock'
+        // prep_status: default 'not_assembled'
       },
     ]);
 
