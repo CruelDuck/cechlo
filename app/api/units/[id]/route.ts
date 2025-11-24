@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
+// GET /api/units/[id] – detail vozíku
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -20,6 +21,7 @@ export async function GET(
         serial_number,
         model,
         status,
+        prep_status,
         sale_date,
         sale_price,
         currency,
@@ -56,6 +58,7 @@ export async function GET(
   }
 }
 
+// PATCH /api/units/[id] – aktualizace vozíku
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -70,6 +73,12 @@ export async function PATCH(
       note: form.get("note") || null,
       currency: form.get("currency") || "CZK",
     };
+
+    // stav přípravy (Nesloženo / Složeno / Připraveno k odeslání)
+    const prep_status = form.get("prep_status");
+    if (prep_status !== null && prep_status !== "") {
+      updateData.prep_status = prep_status;
+    }
 
     // výrobní info
     const purchase_price = form.get("purchase_price");
