@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -64,6 +64,9 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [customersError, setCustomersError] = useState<string | null>(null);
 
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
   useEffect(() => {
     async function load() {
       try {
@@ -95,7 +98,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           setCustomerId(data.customer_id || "");
         }
 
-        // 2) seznam zákazníků pro dropdown
+        // 2) seznam zákazníků
         const resCustomers = await fetch("/api/customers");
         if (!resCustomers.ok) {
           const payload = await resCustomers.json().catch(() => null);
@@ -141,7 +144,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     if (salePrice) formData.append("sale_price", salePrice);
     if (saleDate) formData.append("sale_date", saleDate);
 
-    // zákazník (může být prázdný)
     if (customerId) {
       formData.append("customer_id", customerId);
     } else {
@@ -169,6 +171,45 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     }
 
     setSaving(false);
+  }
+
+  async function handleInvoiceUpload(e: ChangeEvent<HTMLInputElement>) {
+    if (!unit) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingInvoice(true);
+    setInvoiceError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`/api/units/${unit.id}/invoice`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setInvoiceError(
+        payload?.error ?? "Nepodařilo se nahrát fakturu."
+      );
+    } else {
+      const payload = await res.json();
+      // aktualizovat unit v paměti, aby se zobrazil odkaz
+      setUnit((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              invoice_path: payload.invoice_path ?? prev.invoice_path,
+            }
+          : prev
+      );
+    }
+
+    setUploadingInvoice(false);
+    // umožní nahrát stejný soubor znovu
+    e.target.value = "";
   }
 
   if (loading && !unit) {
@@ -208,6 +249,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         : unit.customer.name
       : null);
 
+  const invoicePath: string | null = unit.invoice_path ?? null;
+  const publicInvoiceUrl =
+    invoicePath && process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/invoices/${invoicePath}`
+      : null;
+
   return (
     <main className="space-y-6 max-w-2xl">
       <header className="flex items-center justify-between">
@@ -240,7 +287,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         </Link>
       </header>
 
-      <section className="space-y-4">
+      <section className="space-y-6">
         <form onSubmit={handleSave} className="space-y-6">
           {/* Stav + prodej */}
           <div className="space-y-2">
@@ -402,6 +449,52 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             {saving ? "Ukládám…" : "Uložit změny"}
           </button>
         </form>
+
+        {/* Faktura */}
+        <div className="space-y-2 border-t pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-gray-800">
+            Faktura k vozíku
+          </h3>
+
+          {publicInvoiceUrl ? (
+            <p className="text-sm">
+              Aktuální faktura:{" "}
+              <a
+                href={publicInvoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Otevřít fakturu
+              </a>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              K tomuto vozíku zatím není nahraná faktura.
+            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-sm px-3 py-2 border rounded-md bg-white hover:bg-gray-50 cursor-pointer">
+              {uploadingInvoice ? "Nahrávám…" : "Nahrát / změnit fakturu"}
+              <input
+                type="file"
+                accept=".pdf,image/*,.doc,.docx"
+                className="hidden"
+                onChange={handleInvoiceUpload}
+              />
+            </label>
+            <p className="text-xs text-gray-500">
+              Ideálně PDF, ale můžeš nahrát i obrázek nebo dokument.
+            </p>
+          </div>
+
+          {invoiceError && (
+            <div className="text-xs text-red-700 border border-red-200 bg-red-50 px-3 py-2 rounded-md">
+              {invoiceError}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
