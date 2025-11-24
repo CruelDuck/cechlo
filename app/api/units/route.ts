@@ -13,10 +13,12 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status") as UnitStatus | null;
 
-    let query = supabase
-      .from("units")
-      .select("id, serial_number, model, status, sale_date, sale_price")
-      .order("created_at", { ascending: false });
+let query = supabase
+  .from("units")
+  .select(
+    "id, serial_number, model, status, prep_status, sale_date, sale_price"
+  )
+  .order("created_at", { ascending: false });
 
     if (status) {
       query = query.eq("status", status);
