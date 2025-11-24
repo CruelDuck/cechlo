@@ -18,181 +18,256 @@ type PartRow = {
 export default function PartsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const qParam = searchParams.get("q") || "";
-  const lowStockParam = searchParams.get("lowStock") === "1";
 
+  const initialQ = searchParams.get("q") ?? "";
+  const initialLowStock = searchParams.get("lowStock") === "1";
+
+  const [q, setQ] = useState(initialQ);
+  const [lowStockOnly, setLowStockOnly] = useState(initialLowStock);
   const [parts, setParts] = useState<PartRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useState(qParam);
-  const [lowStock, setLowStock] = useState(lowStockParam);
+  const [importing, setImporting] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  async function loadParts(opts?: { q?: string; lowStock?: boolean }) {
+    const search = opts?.q ?? q;
+    const low = opts?.lowStock ?? lowStockOnly;
 
-        const params = new URLSearchParams();
-        if (qParam) params.set("q", qParam);
-        if (lowStockParam) params.set("lowStock", "1");
+    setLoading(true);
+    setError(null);
 
-        const query = params.toString();
-        const res = await fetch(`/api/parts${query ? `?${query}` : ""}`);
+    const params = new URLSearchParams();
+    if (search.trim() !== "") params.set("q", search.trim());
+    if (low) params.set("lowStock", "1");
 
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null);
-          setError(payload?.error ?? "Nepodařilo se načíst díly.");
-          setParts([]);
-          return;
-        }
-
-        const data = (await res.json()) as PartRow[];
-        setParts(data);
-      } catch (e) {
-        console.error(e);
-        setError("Neočekávaná chyba při načítání dílů.");
-        setParts([]);
-      } finally {
-        setLoading(false);
-      }
+    const res = await fetch(`/api/parts?${params.toString()}`);
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setError(payload?.error ?? "Chyba při načítání seznamu dílů.");
+      setLoading(false);
+      return;
     }
 
-    load();
-  }, [qParam, lowStockParam]);
+    const data = (await res.json()) as PartRow[];
+    setParts(data);
+    setLoading(false);
 
-  function applyFilters() {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (lowStock) params.set("lowStock", "1");
-    const qs = params.toString();
-    router.push(`/parts${qs ? `?${qs}` : ""}`);
+    // Aktualizace URL (bez reloadu)
+    const urlParams = new URLSearchParams();
+    if (search.trim() !== "") urlParams.set("q", search.trim());
+    if (low) urlParams.set("lowStock", "1");
+    const qs = urlParams.toString();
+    router.replace(qs ? `/parts?${qs}` : "/parts");
   }
 
-  function handleRowClick(id: string) {
-    router.push(`/parts/${id}`);
+  useEffect(() => {
+    loadParts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    loadParts({ q, lowStock: lowStockOnly });
+  }
+
+  function toggleLowStock() {
+    const newVal = !lowStockOnly;
+    setLowStockOnly(newVal);
+    loadParts({ q, lowStock: newVal });
+  }
+
+  function handleExport() {
+    // necháme prohlížeč stáhnout CSV
+    window.location.href = "/api/parts/export";
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/parts/import", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setError(payload?.error ?? "Chyba při importu CSV.");
+    } else {
+      const payload = await res.json().catch(() => null);
+      if (payload?.errors?.length) {
+        setError(
+          `Import proběhl, ale některé řádky se nepodařilo aktualizovat (${payload.errors.length}).`
+        );
+      }
+      // znovu načíst seznam
+      await loadParts();
+    }
+
+    setImporting(false);
+    // vyčistit input, aby šel nahrát stejný soubor znovu
+    e.target.value = "";
   }
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-4">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Sklad dílů
-          </h2>
+          <h2 className="text-lg font-semibold">Náhradní díly</h2>
           <p className="text-sm text-gray-500">
-            Přehled všech komponent pro Čechlo – včetně skladového množství.
+            Seznam ND s množstvím na skladě, nákupní a prodejní cenou.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="px-3 py-2 rounded-md border text-sm bg-white hover:bg-gray-50"
+          >
+            Stáhnout CSV
+          </button>
 
-        <Link
-          href="/parts/new"
-          className="px-4 py-2 border rounded-md bg-white hover:bg-gray-50 text-sm"
-        >
-          + Nový díl
-        </Link>
+          <label className="px-3 py-2 rounded-md border text-sm bg-white hover:bg-gray-50 cursor-pointer">
+            {importing ? "Nahrávám…" : "Nahrát CSV"}
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={handleImport}
+            />
+          </label>
+
+          <Link
+            href="/parts/new"
+            className="px-3 py-2 rounded-md border text-sm bg-gray-900 text-white hover:bg-gray-800"
+          >
+            + Nový díl
+          </Link>
+        </div>
       </header>
 
-      {/* Filtry */}
-      <section className="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Hledat podle čísla dílu / názvu / kategorie"
-          className="border rounded-md px-3 py-2 text-sm w-full sm:w-80"
-        />
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={lowStock}
-            onChange={(e) => setLowStock(e.target.checked)}
-          />
-          Jen nízké zásoby (≤ 1 ks)
-        </label>
-        <button
-          type="button"
-          onClick={applyFilters}
-          className="px-3 py-2 border rounded-md bg-white text-sm hover:bg-gray-50"
+      <section className="space-y-3">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-col sm:flex-row gap-2 items-start sm:items-center"
         >
-          Filtrovat
-        </button>
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Hledat podle čísla dílu nebo názvu…"
+            className="w-full sm:w-64 border rounded-md px-3 py-2 text-sm"
+          />
+          <button
+            type="submit"
+            className="px-3 py-2 rounded-md border text-sm bg-white hover:bg-gray-50"
+          >
+            Hledat
+          </button>
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={lowStockOnly}
+              onChange={toggleLowStock}
+            />
+            Jen nízký sklad
+          </label>
+        </form>
+
+        <p className="text-xs text-gray-500">
+          CSV export/import používá oddělovač <code>;</code> a sloupce:
+          <br />
+          <code>
+            part_number; name; category; stock_qty; purchase_price; sale_price;
+            currency; note
+          </code>
+          . Při importu se aktualizuje pouze{" "}
+          <code>stock_qty</code> podle <code>part_number</code>.
+        </p>
       </section>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="text-sm text-red-600 border border-red-200 bg-red-50 rounded-md px-3 py-2">
           {error}
         </div>
       )}
 
-      {loading && !error && (
-        <div className="text-sm text-gray-500">Načítám díly…</div>
-      )}
-
-      <div className="overflow-x-auto rounded-lg border bg-white">
-        <table className="w-full text-sm">
+      <div className="rounded-lg border bg-white overflow-x-auto">
+        <table className="min-w-full text-sm">
           <thead className="bg-gray-50 border-b">
-            <tr className="text-left">
-              <th className="py-2 px-3 font-medium text-gray-700">
+            <tr>
+              <th className="py-2 px-3 text-left font-medium text-gray-700">
                 Číslo dílu
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
+              <th className="py-2 px-3 text-left font-medium text-gray-700">
                 Název
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
+              <th className="py-2 px-3 text-left font-medium text-gray-700">
                 Kategorie
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
+              <th className="py-2 px-3 text-right font-medium text-gray-700">
                 Sklad (ks)
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
+              <th className="py-2 px-3 text-right font-medium text-gray-700">
                 Nákupní cena
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
+              <th className="py-2 px-3 text-right font-medium text-gray-700">
                 Prodejní cena
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
-            {!loading && !error && parts.length === 0 && (
+          <tbody>
+            {loading && (
               <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
-                  Zatím žádné díly.
+                <td colSpan={6} className="py-4 px-3 text-center text-gray-500">
+                  Načítám…
                 </td>
               </tr>
             )}
 
-            {parts.map((p) => (
-              <tr
-                key={p.id}
-                className={`hover:bg-gray-50 cursor-pointer ${
-                  p.stock_qty <= 1 ? "bg-red-50" : ""
-                }`}
-                onClick={() => handleRowClick(p.id)}
-              >
-                <td className="py-2 px-3 font-mono">{p.part_number}</td>
-                <td className="py-2 px-3">{p.name}</td>
-                <td className="py-2 px-3">{p.category || "-"}</td>
-                <td className="py-2 px-3">
-                  {p.stock_qty}
-                  {p.stock_qty <= 1 && (
-                    <span className="ml-2 text-xs text-red-600">
-                      nízký stav
-                    </span>
-                  )}
-                </td>
-                <td className="py-2 px-3">
-                  {p.purchase_price != null
-                    ? `${p.purchase_price} ${p.currency}`
-                    : "-"}
-                </td>
-                <td className="py-2 px-3">
-                  {p.sale_price != null
-                    ? `${p.sale_price} ${p.currency}`
-                    : "-"}
+            {!loading && parts.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-4 px-3 text-center text-gray-500">
+                  Žádné díly k zobrazení.
                 </td>
               </tr>
-            ))}
+            )}
+
+            {!loading &&
+              parts.map((p) => (
+                <tr key={p.id} className="border-t hover:bg-gray-50">
+                  <td className="py-2 px-3 whitespace-nowrap">
+                    <Link
+                      href={`/parts/${p.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {p.part_number}
+                    </Link>
+                  </td>
+                  <td className="py-2 px-3">{p.name}</td>
+                  <td className="py-2 px-3">
+                    {p.category ?? <span className="text-gray-400">-</span>}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    {p.stock_qty ?? 0}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    {p.purchase_price != null
+                      ? `${p.purchase_price} ${p.currency}`
+                      : "-"}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    {p.sale_price != null
+                      ? `${p.sale_price} ${p.currency}`
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
