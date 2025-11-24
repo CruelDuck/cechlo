@@ -182,11 +182,27 @@ export default function UnitsPage() {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleRowClick(u.id)}
                 >
-                  <td className="py-2 px-3">{u.serial_number}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">
+                    {u.serial_number}
+                  </td>
                   <td className="py-2 px-3">{u.model ?? "-"}</td>
-                  <td className="py-2 px-3">{statusLabel(u.status)}</td>
                   <td className="py-2 px-3">
-                    {prepStatusLabel(u.prep_status)}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium bg-gray-100 text-gray-800 border-gray-200">
+                      {statusLabel(u.status)}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3">
+                    {u.prep_status ? (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${prepStatusClasses(
+                          u.prep_status
+                        )}`}
+                      >
+                        {prepStatusLabel(u.prep_status)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
                   </td>
                   <td className="py-2 px-3">
                     {u.sale_date ? u.sale_date : "-"}
@@ -242,7 +258,7 @@ function statusLabel(status: UnitStatus) {
   }
 }
 
-function prepStatusLabel(prep: UnitPrepStatus | null | undefined) {
+function prepStatusLabel(prep: UnitPrepStatus) {
   switch (prep) {
     case "not_assembled":
       return "Nesloženo";
@@ -252,5 +268,18 @@ function prepStatusLabel(prep: UnitPrepStatus | null | undefined) {
       return "Připraveno k odeslání";
     default:
       return "-";
+  }
+}
+
+function prepStatusClasses(prep: UnitPrepStatus) {
+  switch (prep) {
+    case "not_assembled":
+      return "bg-red-100 text-red-800 border-red-200";
+    case "assembled":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    case "ready_to_ship":
+      return "bg-green-100 text-green-800 border-green-200";
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200";
   }
 }
