@@ -179,7 +179,11 @@ export default function UnitsPage() {
               units.map((u) => (
                 <tr
                   key={u.id}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className={`cursor-pointer ${
+                    u.status === "sold"
+                      ? "bg-green-50 hover:bg-green-100"
+                      : "hover:bg-gray-50"
+                  }`}
                   onClick={() => handleRowClick(u.id)}
                 >
                   <td className="py-2 px-3 whitespace-nowrap">
