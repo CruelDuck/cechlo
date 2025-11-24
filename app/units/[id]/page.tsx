@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type UnitStatus = "in_stock" | "sold" | "reserved" | "demo" | "scrapped";
+type UnitPrepStatus = "not_assembled" | "assembled" | "ready_to_ship";
 
 type CustomerOption = {
   id: string;
@@ -29,6 +30,19 @@ function statusLabel(status: UnitStatus) {
   }
 }
 
+function prepStatusLabel(prep: UnitPrepStatus) {
+  switch (prep) {
+    case "not_assembled":
+      return "Nesloženo";
+    case "assembled":
+      return "Složeno";
+    case "ready_to_ship":
+      return "Připraveno k odeslání";
+    default:
+      return "-";
+  }
+}
+
 export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [unit, setUnit] = useState<any>(null);
@@ -38,6 +52,8 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
 
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<UnitStatus>("in_stock");
+  const [prepStatus, setPrepStatus] =
+    useState<UnitPrepStatus>("not_assembled");
   const [salePrice, setSalePrice] = useState<string>("");
   const [saleDate, setSaleDate] = useState<string>("");
 
@@ -59,23 +75,27 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         if (!res.ok) {
           const payload = await res.json().catch(() => null);
           setError(payload?.error ?? "Nepodařilo se načíst vozík.");
-          return;
+          setUnit(null);
+        } else {
+          const data = await res.json();
+          setUnit(data);
+          setNote(data.note || "");
+          setStatus((data.status as UnitStatus) || "in_stock");
+          setPrepStatus(
+            (data.prep_status as UnitPrepStatus) || "not_assembled"
+          );
+          setSalePrice(
+            data.sale_price != null ? String(data.sale_price) : ""
+          );
+          setSaleDate(data.sale_date || "");
+          setPurchasePrice(
+            data.purchase_price != null ? String(data.purchase_price) : ""
+          );
+          setPurchaseDate(data.purchase_date || "");
+          setCustomerId(data.customer_id || "");
         }
-        const data = await res.json();
-        setUnit(data);
-        setNote(data.note || "");
-        setStatus(data.status || "in_stock");
-        setSalePrice(
-          data.sale_price != null ? String(data.sale_price) : ""
-        );
-        setSaleDate(data.sale_date || "");
-        setPurchasePrice(
-          data.purchase_price != null ? String(data.purchase_price) : ""
-        );
-        setPurchaseDate(data.purchase_date || "");
-        setCustomerId(data.customer_id || "");
 
-        // 2) načíst seznam zákazníků pro dropdown
+        // 2) seznam zákazníků pro dropdown
         const resCustomers = await fetch("/api/customers");
         if (!resCustomers.ok) {
           const payload = await resCustomers.json().catch(() => null);
@@ -94,6 +114,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       } catch (e) {
         console.error(e);
         setError("Neočekávaná chyba při načítání vozíku.");
+        setUnit(null);
       } finally {
         setLoading(false);
       }
@@ -102,7 +123,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     load();
   }, [params.id]);
 
-  async function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!unit) return;
 
@@ -112,6 +133,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     const formData = new FormData();
     formData.append("model", unit.model || "");
     formData.append("status", status);
+    formData.append("prep_status", prepStatus);
     formData.append("note", note);
     formData.append("currency", unit.currency || "CZK");
 
@@ -129,7 +151,10 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     // výrobní informace
     if (purchasePrice) formData.append("purchase_price", purchasePrice);
     if (purchaseDate) formData.append("purchase_date", purchaseDate);
-    formData.append("purchase_currency", unit?.purchase_currency || "CZK");
+    formData.append(
+      "purchase_currency",
+      unit?.purchase_currency || "CZK"
+    );
 
     const res = await fetch(`/api/units/${unit.id}`, {
       method: "PATCH",
@@ -139,26 +164,49 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     if (!res.ok) {
       const payload = await res.json().catch(() => null);
       setError(payload?.error ?? "Nepodařilo se uložit změny.");
-      setSaving(false);
-      return;
+    } else {
+      router.refresh();
     }
 
-    router.refresh();
     setSaving(false);
   }
 
-  if (loading) {
-    return <div className="p-4 text-gray-500">Načítám…</div>;
+  if (loading && !unit) {
+    return (
+      <main className="max-w-2xl">
+        <p className="text-sm text-gray-500">Načítám vozík…</p>
+      </main>
+    );
   }
 
-  if (error || !unit) {
-    return <div className="p-4 text-red-700">{error || "Chyba"}</div>;
+  if (!unit) {
+    return (
+      <main className="max-w-2xl">
+        <p className="text-sm text-red-600">
+          Vozík nebyl nalezen nebo došlo k chybě.
+        </p>
+        {error && (
+          <p className="text-sm text-red-600 mt-2">
+            Detail: {error}
+          </p>
+        )}
+        <Link
+          href="/units"
+          className="text-sm text-gray-600 hover:underline mt-4 inline-block"
+        >
+          Zpět na seznam vozíků
+        </Link>
+      </main>
+    );
   }
 
   const currentCustomerName =
-    unit.customer?.name && unit.customer?.city
-      ? `${unit.customer.name} (${unit.customer.city})`
-      : unit.customer?.name || null;
+    customers.find((c) => c.id === customerId)?.name ??
+    (unit.customer
+      ? unit.customer.city
+        ? `${unit.customer.name} (${unit.customer.city})`
+        : unit.customer.name
+      : null);
 
   return (
     <main className="space-y-6 max-w-2xl">
@@ -168,7 +216,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             {unit.serial_number}
           </h2>
           <p className="text-sm text-gray-500">
-            {unit.model || "Neznámý model"} • {statusLabel(unit.status)}
+            {unit.model || "Neznámý model"} • {statusLabel(status)}
           </p>
           {currentCustomerName && (
             <p className="text-sm text-gray-600">
@@ -176,6 +224,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               <span className="font-medium">{currentCustomerName}</span>
             </p>
           )}
+          <p className="text-xs text-gray-500 mt-1">
+            Stav přípravy:{" "}
+            <span className="font-medium">
+              {prepStatusLabel(prepStatus)}
+            </span>
+          </p>
         </div>
 
         <Link
@@ -186,103 +240,137 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         </Link>
       </header>
 
-      <section className="space-y-2">
-        <h3 className="font-medium">Prodejní a výrobní informace</h3>
-        <form onSubmit={handleSave} className="space-y-4">
+      <section className="space-y-4">
+        <form onSubmit={handleSave} className="space-y-6">
           {/* Stav + prodej */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Stav
-              </label>
-              <select
-                value={status}
-                onChange={(e) =>
-                  setStatus(e.target.value as UnitStatus)
-                }
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              >
-                <option value="in_stock">Skladem</option>
-                <option value="sold">Prodáno</option>
-                <option value="reserved">Rezervace</option>
-                <option value="demo">Demo</option>
-                <option value="scrapped">Vyřazený</option>
-              </select>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Stav a prodejní informace
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Stav
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value as UnitStatus)
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="in_stock">Skladem</option>
+                  <option value="sold">Prodáno</option>
+                  <option value="reserved">Rezervace</option>
+                  <option value="demo">Demo</option>
+                  <option value="scrapped">Vyřazený</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Stav přípravy
+                </label>
+                <select
+                  value={prepStatus}
+                  onChange={(e) =>
+                    setPrepStatus(e.target.value as UnitPrepStatus)
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="not_assembled">Nesloženo</option>
+                  <option value="assembled">Složeno</option>
+                  <option value="ready_to_ship">
+                    Připraveno k odeslání
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Datum prodeje
+                </label>
+                <input
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Datum prodeje
-              </label>
-              <input
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Prodejní cena (Kč)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Prodejní cena (Kč)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Zákazník
+                </label>
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="">– žádný –</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.city ? `${c.name} (${c.city})` : c.name}
+                    </option>
+                  ))}
+                </select>
+                {customersError && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {customersError}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Zákazník */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Zákazník
-            </label>
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">– Nepřiřazen –</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.city ? ` (${c.city})` : ""}
-                </option>
-              ))}
-            </select>
-            {customersError && (
-              <p className="text-xs text-red-600 mt-1">
-                {customersError}
-              </p>
-            )}
-          </div>
-
-          {/* Výrobní cena + nákup */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Výrobní / nákupní cena (Kč)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Datum nákupu
-              </label>
-              <input
-                type="date"
-                value={purchaseDate}
-                onChange={(e) => setPurchaseDate(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              />
+          {/* Výrobní informace */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-800">
+              Výrobní informace
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Nákupní cena (Kč)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={purchasePrice}
+                  onChange={(e) =>
+                    setPurchasePrice(e.target.value)
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Datum nákupu
+                </label>
+                <input
+                  type="date"
+                  value={purchaseDate}
+                  onChange={(e) =>
+                    setPurchaseDate(e.target.value)
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
             </div>
           </div>
 
