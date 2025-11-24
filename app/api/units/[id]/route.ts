@@ -12,7 +12,6 @@ export async function GET(
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
-    // načteme jednotku + připojeného zákazníka
     const { data, error } = await supabase
       .from("units")
       .select(
@@ -30,6 +29,7 @@ export async function GET(
         purchase_price,
         purchase_currency,
         purchase_date,
+        invoice_path,
         customer:customers (
           id,
           name,
@@ -74,7 +74,7 @@ export async function PATCH(
       currency: form.get("currency") || "CZK",
     };
 
-    // stav přípravy (Nesloženo / Složeno / Připraveno k odeslání)
+    // stav přípravy
     const prep_status = form.get("prep_status");
     if (prep_status !== null && prep_status !== "") {
       updateData.prep_status = prep_status;
