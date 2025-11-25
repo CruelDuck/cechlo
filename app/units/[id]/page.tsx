@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type UnitStatus = "in_stock" | "sold" | "reserved" | "demo" | "scrapped";
-type UnitPrepStatus = "not_assembled" | "assembled" | "ready_to_ship";
+type UnitPrepStatus = "neslozeno" | "slozeno" | "pripraveno" | "odeslano";
 
 type CustomerOption = {
   id: string;
@@ -30,14 +30,36 @@ function statusLabel(status: UnitStatus) {
   }
 }
 
+function normalizePrepStatus(value: any): UnitPrepStatus {
+  if (value == null) return "neslozeno";
+  const v = String(value).toLowerCase().trim();
+
+  if (v === "neslozeno" || v === "nesloženo") return "neslozeno";
+  if (v === "slozeno" || v === "složeno") return "slozeno";
+  if (
+    v === "pripraveno" ||
+    v === "pripravene" ||
+    v === "připraveno" ||
+    v.includes("pripraveno k odeslani") ||
+    v.includes("připraveno k odeslání")
+  ) {
+    return "pripraveno";
+  }
+  if (v === "odeslano" || v === "odesláno") return "odeslano";
+
+  return "neslozeno";
+}
+
 function prepStatusLabel(prep: UnitPrepStatus) {
   switch (prep) {
-    case "not_assembled":
+    case "neslozeno":
       return "Nesloženo";
-    case "assembled":
+    case "slozeno":
       return "Složeno";
-    case "ready_to_ship":
+    case "pripraveno":
       return "Připraveno k odeslání";
+    case "odeslano":
+      return "Odesláno";
     default:
       return "-";
   }
@@ -52,8 +74,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
 
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<UnitStatus>("in_stock");
-  const [prepStatus, setPrepStatus] =
-    useState<UnitPrepStatus>("not_assembled");
+  const [prepStatus, setPrepStatus] = useState<UnitPrepStatus>("neslozeno");
   const [salePrice, setSalePrice] = useState<string>("");
   const [saleDate, setSaleDate] = useState<string>("");
 
@@ -84,9 +105,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           setUnit(data);
           setNote(data.note || "");
           setStatus((data.status as UnitStatus) || "in_stock");
-          setPrepStatus(
-            (data.prep_status as UnitPrepStatus) || "not_assembled"
-          );
+          setPrepStatus(normalizePrepStatus(data.prep_status));
           setSalePrice(
             data.sale_price != null ? String(data.sale_price) : ""
           );
@@ -136,7 +155,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     const formData = new FormData();
     formData.append("model", unit.model || "");
     formData.append("status", status);
-    formData.append("prep_status", prepStatus);
+    formData.append("prep_status", prepStatus); // uložíme kanonickou hodnotu
     formData.append("note", note);
     formData.append("currency", unit.currency || "CZK");
 
@@ -325,11 +344,10 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                   }
                   className="w-full border rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="not_assembled">Nesloženo</option>
-                  <option value="assembled">Složeno</option>
-                  <option value="ready_to_ship">
-                    Připraveno k odeslání
-                  </option>
+                  <option value="neslozeno">Nesloženo</option>
+                  <option value="slozeno">Složeno</option>
+                  <option value="pripraveno">Připraveno k odeslání</option>
+                  <option value="odeslano">Odesláno</option>
                 </select>
               </div>
 
