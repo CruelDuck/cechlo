@@ -5,8 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import Link from "next/link";
 
-
-
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +40,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm bg-white border rounded-xl p-6 space-y-4 shadow-sm">
         <h1 className="text-lg font-semibold text-center">Přihlášení</h1>
+
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-sm mb-1">Email</label>
@@ -54,6 +53,7 @@ export default function LoginPage() {
               placeholder="ty@cechlo.cz"
             />
           </div>
+
           <div>
             <label className="block text-sm mb-1">Heslo</label>
             <input
@@ -65,7 +65,9 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
           </div>
+
           {error && <div className="text-sm text-red-600">{error}</div>}
+
           <button
             type="submit"
             disabled={loading}
@@ -74,17 +76,17 @@ export default function LoginPage() {
             {loading ? 'Přihlašuji…' : 'Přihlásit se'}
           </button>
         </form>
+
+        <p className="mt-2 text-xs text-gray-500 text-center">
+          Zapomněl jsi heslo?{" "}
+          <Link
+            href="/auth/forgot-password"
+            className="text-blue-600 hover:underline"
+          >
+            Obnovit heslo
+          </Link>
+        </p>
       </div>
     </main>
   );
-  <p className="mt-2 text-xs text-gray-500">
-  Zapomněl jsi heslo?{" "}
-  <Link
-    href="/auth/forgot-password"
-    className="text-blue-600 hover:underline"
-  >
-    Obnovit heslo
-  </Link>
-</p>
-
 }
