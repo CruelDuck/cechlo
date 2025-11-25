@@ -1,14 +1,19 @@
 // lib/supabaseServer.ts
-import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+export function supabaseServer() {
+  const cookieStore = cookies();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Tohle se zaloguje ve Vercel logs, kdyby bylo něco špatně s env
-  console.error("Missing Supabase env variables");
-}
-
-export function createSupabaseServerClient() {
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
 }
