@@ -1,4 +1,3 @@
-// app/customers/[id]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -54,6 +53,7 @@ type PartOption = {
   part_number: string;
   name: string;
   sale_price: number | null;
+  drawing_position: number | null;
 };
 
 type PartPurchase = {
@@ -122,7 +122,7 @@ export default function CustomerDetailPage({
     string | null
   >(null);
 
-  // stav pro nový servisní zásah
+  // nový servisní zásah
   const [newUnitId, setNewUnitId] = useState<string>("");
   const [newPerformedAt, setNewPerformedAt] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -137,7 +137,7 @@ export default function CustomerDetailPage({
   const [newNote, setNewNote] = useState<string>("");
   const [savingService, setSavingService] = useState(false);
 
-  // stav pro nový nákup ND
+  // nový nákup ND
   const [newPartId, setNewPartId] = useState<string>("");
   const [newPurchasedAt, setNewPurchasedAt] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -150,7 +150,7 @@ export default function CustomerDetailPage({
     useState<string>("");
   const [savingPartPurchase, setSavingPartPurchase] = useState(false);
 
-  // editace existujícího nákupu ND
+  // editace nákupu ND
   const [editingPartPurchaseId, setEditingPartPurchaseId] =
     useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<string>("");
@@ -260,6 +260,7 @@ export default function CustomerDetailPage({
           part_number: p.part_number,
           name: p.name,
           sale_price: p.sale_price ?? null,
+          drawing_position: p.drawing_position ?? null,
         }));
         setParts(options);
       } catch (e) {
@@ -397,12 +398,24 @@ export default function CustomerDetailPage({
     }
 
     setServiceEvents((prev) => prev.filter((s) => s.id !== id));
-    // zároveň odfiltrujeme díly navázané na tenhle zásah
     setPartPurchases((prev) =>
       prev.map((p) =>
         p.service_event_id === id ? { ...p, service_event_id: null } : p
       )
     );
+  }
+
+  function handleAddPartForServiceEvent(s: ServiceEvent) {
+    setNewPartServiceEventId(s.id);
+    if (s.performed_at) {
+      setNewPurchasedAt(s.performed_at);
+    }
+    if (typeof document !== "undefined") {
+      const el = document.getElementById("add-part-purchase-form");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   }
 
   // --- Nákupy ND ---
@@ -854,7 +867,8 @@ export default function CustomerDetailPage({
                                   </>
                                 ) : (
                                   <>
-                                    Díl ID {p.id} – {p.quantity} ks
+                                    Díl – {p.quantity} ks, {p.unit_price}{" "}
+                                    {p.currency}
                                   </>
                                 )}
                               </li>
@@ -868,13 +882,22 @@ export default function CustomerDetailPage({
                           : "–"}
                       </td>
                       <td className="py-2 px-3 whitespace-nowrap text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteServiceEvent(s.id)}
-                          className="text-xs text-red-600 hover:underline"
-                        >
-                          Smazat
-                        </button>
+                        <div className="flex flex-col gap-1 items-end">
+                          <button
+                            type="button"
+                            onClick={() => handleAddPartForServiceEvent(s)}
+                            className="text-xs text-blue-700 hover:underline"
+                          >
+                            Přidat díl
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteServiceEvent(s.id)}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Smazat
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1121,6 +1144,13 @@ export default function CustomerDetailPage({
                             <>
                               <div className="font-medium">
                                 {p.part.name}
+                                {typeof p.part.drawing_position ===
+                                  "number" && (
+                                  <span className="text-gray-500">
+                                    {" "}
+                                    (poz. {p.part.drawing_position})
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {p.part.part_number}
@@ -1235,7 +1265,10 @@ export default function CustomerDetailPage({
           )}
 
         {/* Formulář pro nový nákup ND */}
-        <div className="border rounded-lg p-4 bg-white space-y-3">
+        <div
+          id="add-part-purchase-form"
+          className="border rounded-lg p-4 bg-white space-y-3"
+        >
           <h4 className="text-sm font-semibold text-gray-800">
             Přidat nákup náhradního dílu
           </h4>
@@ -1279,6 +1312,9 @@ export default function CustomerDetailPage({
                   <option value="">– vyber díl –</option>
                   {parts.map((p) => (
                     <option key={p.id} value={p.id}>
+                      {p.drawing_position != null
+                        ? `[poz. ${p.drawing_position}] `
+                        : ""}
                       {p.part_number} – {p.name}
                       {p.sale_price != null
                         ? ` (doporučená: ${p.sale_price} Kč)`
