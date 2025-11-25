@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | null = null;
 
-export function supabaseServer(): SupabaseClient {
+export function createSupabaseServerClient(): SupabaseClient {
   if (!client) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -19,3 +19,6 @@ export function supabaseServer(): SupabaseClient {
 
   return client;
 }
+
+// staré i nové importy budou fungovat
+export const supabaseServer = createSupabaseServerClient;
