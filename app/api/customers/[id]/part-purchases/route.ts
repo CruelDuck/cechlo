@@ -1,4 +1,3 @@
-// app/api/customers/[id]/part-purchases/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
