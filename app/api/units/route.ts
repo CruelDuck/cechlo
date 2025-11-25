@@ -4,25 +4,60 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
-type UnitStatus = "in_stock" | "sold" | "reserved" | "demo" | "scrapped";
+type UnitStatus = "in_stock" | "sold" | "reserved" | string;
 
-// GET /api/units – seznam vozíků
 export async function GET(req: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const url = new URL(req.url);
-    const status = url.searchParams.get("status") as UnitStatus | null;
+    const { searchParams } = new URL(req.url);
+
+    const q = searchParams.get("q");
+    const status = searchParams.get("status");
 
     let query = supabase
       .from("units")
-      .select("id, serial_number, model, status, prep_status, sale_date, sale_price")
-      .order("created_at", { ascending: false });
+      .select(
+        `
+        id,
+        created_at,
+        updated_at,
+        product_model_id,
+        serial_number,
+        status,
+        warehouse_location,
+        customer_id,
+        purchase_price,
+        purchase_currency,
+        purchase_date,
+        sale_id,
+        sale_date,
+        sale_price,
+        currency,
+        note,
+        model,
+        prep_status
+      `
+      );
 
-    if (status) {
-      query = query.eq("status", status);
+    if (q && q.trim() !== "") {
+      const like = `%${q.trim()}%`;
+      query = query.or(
+        `
+          serial_number.ilike.${like},
+          model.ilike.${like},
+          warehouse_location.ilike.${like},
+          note.ilike.${like}
+        `
+      );
     }
 
-    const { data, error } = await query;
+    if (status && status !== "all") {
+      // filtr podle hlavního statusu (in_stock / sold / reserved ...)
+      query = query.eq("status", status as UnitStatus);
+    }
+
+    const { data, error } = await query
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("GET /api/units error:", error);
@@ -34,7 +69,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data ?? []);
   } catch (e) {
-    console.error("Unexpected GET /api/units error:", e);
+    console.error("GET /api/units unexpected error:", e);
     return NextResponse.json(
       { error: "Interní chyba serveru." },
       { status: 500 }
@@ -42,47 +77,4 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/units – nový vozík
-export async function POST(req: NextRequest) {
-  try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const form = await req.formData();
-
-    const serial_number = String(form.get("serial_number") || "").trim();
-    const model = (form.get("model") as string | null) || null;
-    const note = (form.get("note") as string | null) || null;
-
-    if (!serial_number) {
-      return NextResponse.json(
-        { error: "Sériové číslo je povinné." },
-        { status: 400 }
-      );
-    }
-
-    const { error } = await supabase.from("units").insert([
-      {
-        serial_number,
-        model,
-        note,
-        // status: default 'in_stock'
-        // prep_status: default 'not_assembled'
-      },
-    ]);
-
-    if (error) {
-      console.error("POST /api/units error:", error);
-      return NextResponse.json(
-        { error: error.message ?? "Chyba při ukládání vozíku." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("Unexpected POST /api/units error:", err);
-    return NextResponse.json(
-      { error: "Interní chyba serveru." },
-      { status: 500 }
-    );
-  }
-}
+// pokud máš POST / PUT na units jinde, klidně je nech tak, jak máš
