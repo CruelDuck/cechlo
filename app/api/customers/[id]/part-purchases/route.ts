@@ -1,3 +1,4 @@
+// app/api/customers/[id]/part-purchases/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
@@ -26,13 +27,15 @@ export async function GET(
         quantity,
         unit_price,
         currency,
+        vat_rate,
         note,
         part:parts (
           id,
           part_number,
           name,
           category,
-          drawing_position
+          drawing_position,
+          vat_rate
         )
       `
       )
@@ -81,6 +84,7 @@ export async function POST(
       currency,
       note,
       service_event_id,
+      vat_rate,
     } = body as {
       part_id?: string;
       purchased_at?: string | null;
@@ -89,6 +93,7 @@ export async function POST(
       currency?: string | null;
       note?: string | null;
       service_event_id?: string | null;
+      vat_rate?: number | string | null;
     };
 
     if (!part_id) {
@@ -107,6 +112,10 @@ export async function POST(
 
     const qty = quantity && quantity !== "" ? Number(quantity) : 1;
     const price = Number(unit_price);
+    const vat =
+      vat_rate !== undefined && vat_rate !== null && vat_rate !== ""
+        ? Number(vat_rate)
+        : 21;
 
     if (Number.isNaN(qty) || qty <= 0) {
       return NextResponse.json(
@@ -129,6 +138,7 @@ export async function POST(
       quantity: qty,
       unit_price: price,
       currency: currency || "CZK",
+      vat_rate: Number.isNaN(vat) ? 21 : vat,
       note: note || null,
       service_event_id: service_event_id || null,
     };
@@ -148,13 +158,15 @@ export async function POST(
         quantity,
         unit_price,
         currency,
+        vat_rate,
         note,
         part:parts (
           id,
           part_number,
           name,
           category,
-          drawing_position
+          drawing_position,
+          vat_rate
         )
       `
       )
