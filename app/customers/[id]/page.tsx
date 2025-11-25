@@ -41,6 +41,7 @@ type ServiceEvent = {
   total_cost: number | null;
   currency: string;
   note: string | null;
+  vat_rate: number | null;
   unit?: {
     id: string;
     serial_number: string;
@@ -136,8 +137,9 @@ export default function CustomerDetailPage({
   const [newLaborCost, setNewLaborCost] = useState<string>("");
   const [newMaterialCost, setNewMaterialCost] = useState<string>("");
   const [newTotalCost, setNewTotalCost] = useState<string>("");
+  const [newVatRate, setNewVatRate] = useState<string>("21");
   const [newCurrency, setNewCurrency] = useState<string>("CZK");
-  const [newNote, setNewNote] = useState<string>("");
+  const [newNote, setNewNote] = useState<string>("");;
   const [savingService, setSavingService] = useState(false);
 
   // nový nákup ND
@@ -353,6 +355,7 @@ export default function CustomerDetailPage({
       total_cost: totalToSend,
       currency: newCurrency || "CZK",
       note: newNote || null,
+          vat_rate: newVatRate || "21",
     };
 
     const res = await fetch(`/api/customers/${customer.id}/service-events`, {
@@ -384,6 +387,7 @@ export default function CustomerDetailPage({
     setNewLaborCost("");
     setNewMaterialCost("");
     setNewTotalCost("");
+    setNewVatRate("21");
     setNewCurrency("CZK");
     setNewNote("");
   }
@@ -902,11 +906,30 @@ export default function CustomerDetailPage({
                           </ul>
                         )}
                       </td>
-                      <td className="py-2 px-3 whitespace-nowrap text-right">
-                        {s.total_cost != null
-                          ? `${s.total_cost} ${s.currency}`
-                          : "–"}
-                      </td>
+<td className="py-2 px-3 whitespace-nowrap text-right">
+  {s.total_cost != null ? (
+    <div className="text-xs">
+      {(() => {
+        const vat = s.vat_rate ?? 21;
+        const totalNet = s.total_cost!;
+        const totalGross = Math.round(totalNet * (1 + vat / 100));
+
+        return (
+          <>
+            <div>
+              {totalNet} {s.currency} bez DPH
+            </div>
+            <div className="text-gray-500">
+              {totalGross} {s.currency} s DPH ({vat}%)
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  ) : (
+    "–"
+  )}
+</td>
                       <td className="py-2 px-3 whitespace-nowrap text-right">
                         <div className="flex flex-col gap-1 items-end">
                           <button
@@ -1014,7 +1037,7 @@ export default function CustomerDetailPage({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">
                   Cena práce
@@ -1050,6 +1073,18 @@ export default function CustomerDetailPage({
                   onChange={(e) => setNewTotalCost(e.target.value)}
                   className="w-full border rounded-md px-2 py-1 text-sm"
                   placeholder="pokud necháš prázdné, dopočte se práce+materiál"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  DPH (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newVatRate}
+                  onChange={(e) => setNewVatRate(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
                 />
               </div>
               <div>
