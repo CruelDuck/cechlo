@@ -20,24 +20,29 @@ export default function UpdatePasswordPage() {
   useEffect(() => {
     async function prepareSession() {
       setError(null);
+
       const code = searchParams.get("code");
 
       try {
         if (code) {
+          // jednorázová výměna kódu za session
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
             console.error("exchangeCodeForSession error", error);
             setError(
-              "Odkaz pro změnu hesla už neplatí nebo je neplatný. Zkus prosím poslat reset znovu."
+              "Odkaz pro změnu hesla už neplatí nebo je neplatný. Pošli si prosím nový resetovací e-mail."
             );
             return;
           }
         } else {
-          // možná už je user přihlášen – pro jistotu ověříme
-          const { data } = await supabase.auth.getSession();
-          if (!data.session) {
+          // fallback: možná už session existuje
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error("getSession error", error);
+          }
+          if (!data?.session) {
             setError(
-              "Chybí ověření odkazu. Otevři prosím stránku přes odkaz v e-mailu pro reset hesla."
+              "Chybí ověření odkazu. Otevři prosím tuto stránku přes odkaz v e-mailu pro reset hesla."
             );
             return;
           }
@@ -50,8 +55,10 @@ export default function UpdatePasswordPage() {
       }
     }
 
-    prepareSession();
-  }, [searchParams, supabase]);
+    // spustit POUZE jednou po mountu
+    void prepareSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← tady je ten důležitý rozdíl
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -85,9 +92,8 @@ export default function UpdatePasswordPage() {
         setSuccess(false);
       } else {
         setSuccess(true);
-        // po úspěchu pošleme uživatele na login
         setTimeout(() => {
-          router.push("/login");
+          router.push("/login"); // login máš na /login
         }, 1500);
       }
     } catch (e) {
