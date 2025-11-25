@@ -2,199 +2,326 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function CustomerEditPage({
+type Customer = {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  street: string | null;
+  city: string | null;
+  zip: string | null;
+  country: string | null;
+  status: string;
+  note: string | null;
+  next_action_at: string | null;
+};
+
+export default function EditCustomerPage({
   params,
 }: {
   params: { id: string };
 }) {
   const router = useRouter();
 
-  const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Načíst data
+  // formulářové hodnoty
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [zip, setZip] = useState("");
+  const [country, setCountry] = useState("");
+  const [status, setStatus] = useState("");
+  const [note, setNote] = useState("");
+  const [nextActionAt, setNextActionAt] = useState("");
+
   useEffect(() => {
-    async function load() {
+    async function loadCustomer() {
       try {
+        setLoading(true);
+        setError(null);
+
         const res = await fetch(`/api/customers/${params.id}`);
         if (!res.ok) {
-          const payload = await res.json();
-          setError(payload.error || "Chyba načítání.");
+          const payload = await res.json().catch(() => null);
+          setError(payload?.error ?? "Nepodařilo se načíst zákazníka.");
           return;
         }
-        setCustomer(await res.json());
+
+        const data = (await res.json()) as Customer;
+
+        setName(data.name ?? "");
+        setCompany(data.company ?? "");
+        setEmail(data.email ?? "");
+        setPhone(data.phone ?? "");
+        setStreet(data.street ?? "");
+        setCity(data.city ?? "");
+        setZip(data.zip ?? "");
+        setCountry(data.country ?? "");
+        setStatus(data.status ?? "");
+        setNote(data.note ?? "");
+        // vezmeme jen YYYY-MM-DD, pokud je tam timestamp
+        setNextActionAt(
+          data.next_action_at ? data.next_action_at.slice(0, 10) : ""
+        );
       } catch (e) {
-        setError("Neočekávaná chyba.");
+        console.error(e);
+        setError("Neočekávaná chyba při načítání zákazníka.");
       } finally {
         setLoading(false);
       }
     }
-    load();
+
+    void loadCustomer();
   }, [params.id]);
 
-  async function save(formData: FormData) {
-    setSaving(true);
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setError(null);
+
+    if (!name.trim()) {
+      setError("Jméno / název zákazníka je povinné.");
+      return;
+    }
+
+    setSaving(true);
+
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    formData.append("company", company.trim());
+    formData.append("email", email.trim());
+    formData.append("phone", phone.trim());
+    formData.append("street", street.trim());
+    formData.append("city", city.trim());
+    formData.append("zip", zip.trim());
+    formData.append("country", country.trim());
+    formData.append("status", status.trim());
+    formData.append("note", note.trim());
+    formData.append("next_action_at", nextActionAt || "");
 
     const res = await fetch(`/api/customers/${params.id}`, {
       method: "PATCH",
       body: formData,
     });
 
+    setSaving(false);
+
     if (!res.ok) {
       const payload = await res.json().catch(() => null);
-      setError(payload?.error || "Uložení selhalo.");
-      setSaving(false);
+      setError(payload?.error ?? "Nepodařilo se uložit změny kontaktu.");
       return;
     }
 
+    // po úspěchu zpět na detail zákazníka
     router.push(`/customers/${params.id}`);
     router.refresh();
   }
 
   if (loading) {
-    return <div className="p-4 text-gray-500">Načítám…</div>;
-  }
-
-  if (error || !customer) {
-    return <div className="p-4 text-red-700">{error || "Chyba"}</div>;
+    return (
+      <main className="max-w-2xl">
+        <p className="text-sm text-gray-500">Načítám kontakt…</p>
+      </main>
+    );
   }
 
   return (
-    <main className="space-y-6">
-      <h2 className="text-xl font-semibold">Upravit kontakt</h2>
-
-      <form action={save} className="space-y-6">
-        {/* NAME */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Jméno</label>
-          <input
-            name="name"
-            defaultValue={customer.name}
-            required
-            className="w-full border rounded-md px-3 py-2"
-          />
-        </div>
-
-        {/* CONTACT INFO */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Telefon</label>
-            <input
-              name="phone"
-              defaultValue={customer.phone || ""}
-              className="w-full border rounded-md px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              name="email"
-              defaultValue={customer.email || ""}
-              className="w-full border rounded-md px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              name="status"
-              defaultValue={customer.status}
-              className="w-full border rounded-md px-3 py-2"
-            >
-              <option value="lead">Lead</option>
-              <option value="qualified">Qualified</option>
-              <option value="negotiation">Negotiation</option>
-              <option value="proposal">Proposal</option>
-              <option value="customer">Customer</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-            </select>
-          </div>
-        </div>
-
-        {/* ADDRESS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Ulice</label>
-            <input
-              name="street"
-              defaultValue={customer.street || ""}
-              className="w-full border rounded-md px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Město</label>
-            <input
-              name="city"
-              defaultValue={customer.city || ""}
-              className="w-full border rounded-md px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">PSČ</label>
-            <input
-              name="zip"
-              defaultValue={customer.zip || ""}
-              className="w-full border rounded-md px-3 py-2"
-            />
-          </div>
-        </div>
-
-        {/* COUNTRY */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Země</label>
-          <input
-            name="country"
-            defaultValue={customer.country || "CZ"}
-            className="w-full border rounded-md px-3 py-2"
-          />
-        </div>
-
-        {/* HOT */}
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="is_hot"
-            defaultChecked={customer.is_hot}
-          />
-          <label className="text-sm">🔥 HOT lead</label>
-        </div>
-
-        {/* NEXT ACTION */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Další akce
-          </label>
-          <input
-            type="date"
-            name="next_action_at"
-            defaultValue={customer.next_action_at || ""}
-            className="border rounded-md px-3 py-2"
-          />
-        </div>
-
-        {/* NOTE */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Poznámka</label>
-          <textarea
-            name="note"
-            defaultValue={customer.note || ""}
-            rows={4}
-            className="w-full border rounded-md px-3 py-2"
-          />
-        </div>
-
-        {/* SAVE BUTTON */}
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
+    <main className="space-y-6 max-w-2xl">
+      <header className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Upravit kontakt</h2>
+        <Link
+          href={`/customers/${params.id}`}
+          className="text-xs text-gray-600 hover:underline"
         >
-          {saving ? "Ukládám…" : "Uložit"}
-        </button>
+          Zpět na detail
+        </Link>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+        {/* Základní info */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-800">
+            Základní informace
+          </h3>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Jméno / název *
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Firma (pokud je jiná než jméno)
+            </label>
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. Biobobo s.r.o."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Telefon
+              </label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Adresa */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-800">Adresa</h3>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Ulice a číslo
+            </label>
+            <input
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. Českolipská 393/6"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium mb-1">
+                Město / obec
+              </label>
+              <input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                PSČ
+              </label>
+              <input
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Země
+            </label>
+            <input
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. CZ / Česká republika"
+            />
+          </div>
+        </div>
+
+        {/* Stav & další akce */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-800">
+            Stav a další akce
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Stav (interní)
+              </label>
+              <input
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="např. nový lead, zákazník, neaktivní…"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Další akce (datum)
+              </label>
+              <input
+                type="date"
+                value={nextActionAt}
+                onChange={(e) => setNextActionAt(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Poznámka */}
+        <div>
+          <label className="block text-xs font-medium mb-1">
+            Interní poznámka
+          </label>
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full border rounded-md px-3 py-2 text-sm"
+          />
+        </div>
+
+        {error && (
+          <div className="text-xs text-red-700 border border-red-200 bg-red-50 px-3 py-2 rounded-md">
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
+          >
+            {saving ? "Ukládám…" : "Uložit změny"}
+          </button>
+
+          <Link
+            href={`/customers/${params.id}`}
+            className="text-xs text-gray-600 hover:underline"
+          >
+            Zrušit
+          </Link>
+        </div>
       </form>
     </main>
   );
