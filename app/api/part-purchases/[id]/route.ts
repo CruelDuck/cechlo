@@ -1,10 +1,11 @@
+// app/api/part-purchases/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
-// PATCH: úprava nákupu ND (hlavně cena / množství / poznámka)
+// PATCH: úprava nákupu ND
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -19,12 +20,14 @@ export async function PATCH(
       unit_price,
       currency,
       note,
+      vat_rate,
     } = body as {
       purchased_at?: string | null;
       quantity?: number | string | null;
       unit_price?: number | string | null;
       currency?: string | null;
       note?: string | null;
+      vat_rate?: number | string | null;
     };
 
     const patchData: any = {};
@@ -74,6 +77,11 @@ export async function PATCH(
       patchData.note = note || null;
     }
 
+    if (vat_rate !== undefined) {
+      const v = Number(vat_rate);
+      patchData.vat_rate = Number.isNaN(v) ? 21 : v;
+    }
+
     const { data, error } = await supabase
       .from("customer_part_purchases")
       .update(patchData)
@@ -90,13 +98,15 @@ export async function PATCH(
         quantity,
         unit_price,
         currency,
+        vat_rate,
         note,
         part:parts (
           id,
           part_number,
           name,
           category,
-          drawing_position
+          drawing_position,
+          vat_rate
         )
       `
       )
