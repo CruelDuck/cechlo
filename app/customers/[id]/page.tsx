@@ -49,6 +49,28 @@ type ServiceEvent = {
   } | null;
 };
 
+type PartOption = {
+  id: string;
+  part_number: string;
+  name: string;
+  sale_price: number | null;
+};
+
+type PartPurchase = {
+  id: string;
+  purchased_at: string;
+  quantity: number;
+  unit_price: number;
+  currency: string;
+  note: string | null;
+  part?: {
+    id: string;
+    part_number: string;
+    name: string;
+    category?: string | null;
+  } | null;
+};
+
 function statusLabel(status: UnitStatus) {
   switch (status) {
     case "in_stock":
@@ -81,14 +103,22 @@ export default function CustomerDetailPage({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [units, setUnits] = useState<CustomerUnit[]>([]);
   const [serviceEvents, setServiceEvents] = useState<ServiceEvent[]>([]);
+  const [partPurchases, setPartPurchases] = useState<PartPurchase[]>([]);
+  const [parts, setParts] = useState<PartOption[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [unitsLoading, setUnitsLoading] = useState(true);
   const [serviceLoading, setServiceLoading] = useState(true);
+  const [partsLoading, setPartsLoading] = useState(true);
+  const [partsPurchasesLoading, setPartsPurchasesLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
   const [unitsError, setUnitsError] = useState<string | null>(null);
   const [serviceError, setServiceError] = useState<string | null>(null);
+  const [partsError, setPartsError] = useState<string | null>(null);
+  const [partsPurchasesError, setPartsPurchasesError] = useState<
+    string | null
+  >(null);
 
   // stav pro nový servisní zásah
   const [newUnitId, setNewUnitId] = useState<string>("");
@@ -104,6 +134,25 @@ export default function CustomerDetailPage({
   const [newCurrency, setNewCurrency] = useState<string>("CZK");
   const [newNote, setNewNote] = useState<string>("");
   const [savingService, setSavingService] = useState(false);
+
+  // stav pro nový nákup ND
+  const [newPartId, setNewPartId] = useState<string>("");
+  const [newPurchasedAt, setNewPurchasedAt] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [newQuantity, setNewQuantity] = useState<string>("1");
+  const [newUnitPrice, setNewUnitPrice] = useState<string>("");
+  const [newPartCurrency, setNewPartCurrency] = useState<string>("CZK");
+  const [newPartNote, setNewPartNote] = useState<string>("");
+  const [savingPartPurchase, setSavingPartPurchase] = useState(false);
+
+  // editace existujícího nákupu ND
+  const [editingPartPurchaseId, setEditingPartPurchaseId] =
+    useState<string | null>(null);
+  const [editQuantity, setEditQuantity] = useState<string>("");
+  const [editUnitPrice, setEditUnitPrice] = useState<string>("");
+  const [editCurrency, setEditCurrency] = useState<string>("CZK");
+  const [editNote, setEditNote] = useState<string>("");
 
   useEffect(() => {
     async function loadCustomer() {
@@ -186,10 +235,79 @@ export default function CustomerDetailPage({
       }
     }
 
+    async function loadParts() {
+      try {
+        setPartsLoading(true);
+        setPartsError(null);
+
+        const res = await fetch("/api/parts");
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          setPartsError(
+            payload?.error ?? "Nepodařilo se načíst seznam náhradních dílů."
+          );
+          setParts([]);
+          return;
+        }
+
+        const data = (await res.json()) as any[];
+        const options: PartOption[] = data.map((p) => ({
+          id: p.id,
+          part_number: p.part_number,
+          name: p.name,
+          sale_price: p.sale_price ?? null,
+        }));
+        setParts(options);
+      } catch (e) {
+        console.error(e);
+        setPartsError(
+          "Neočekávaná chyba při načítání seznamu náhradních dílů."
+        );
+        setParts([]);
+      } finally {
+        setPartsLoading(false);
+      }
+    }
+
+    async function loadPartPurchases() {
+      try {
+        setPartsPurchasesLoading(true);
+        setPartsPurchasesError(null);
+
+        const res = await fetch(
+          `/api/customers/${params.id}/part-purchases`
+        );
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          setPartsPurchasesError(
+            payload?.error ??
+              "Nepodařilo se načíst nákupy náhradních dílů."
+          );
+          setPartPurchases([]);
+          return;
+        }
+
+        const data = (await res.json()) as PartPurchase[];
+        setPartPurchases(data);
+      } catch (e) {
+        console.error(e);
+        setPartsPurchasesError(
+          "Neočekávaná chyba při načítání nákupů náhradních dílů."
+        );
+        setPartPurchases([]);
+      } finally {
+        setPartsPurchasesLoading(false);
+      }
+    }
+
     void loadCustomer();
     void loadUnits();
     void loadServiceEvents();
+    void loadParts();
+    void loadPartPurchases();
   }, [params.id]);
+
+  // --- Servisní zásahy ---
 
   async function handleCreateServiceEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -203,7 +321,6 @@ export default function CustomerDetailPage({
     setSavingService(true);
     setServiceError(null);
 
-    // pokud není vyplněno total_cost, můžeš ho automaticky dopočítat
     let totalToSend: string | null = newTotalCost || null;
     if (!totalToSend) {
       const labor = newLaborCost ? Number(newLaborCost) : 0;
@@ -246,10 +363,8 @@ export default function CustomerDetailPage({
     }
 
     const created = (await res.json()) as ServiceEvent;
-    // přidáme nový záznam na začátek seznamu
     setServiceEvents((prev) => [created, ...prev]);
 
-    // reset formuláře
     setNewUnitId("");
     setNewPerformedAt(new Date().toISOString().slice(0, 10));
     setNewType("");
@@ -278,6 +393,164 @@ export default function CustomerDetailPage({
     }
 
     setServiceEvents((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  // --- Nákupy ND ---
+
+  function handleNewPartChange(partId: string) {
+    setNewPartId(partId);
+    // předvyplnit cenu podle prodejní ceny dílu
+    const found = parts.find((p) => p.id === partId);
+    if (found && found.sale_price != null) {
+      setNewUnitPrice(String(found.sale_price));
+    }
+  }
+
+  async function handleCreatePartPurchase(e: React.FormEvent) {
+    e.preventDefault();
+    if (!customer) return;
+
+    if (!newPartId) {
+      setPartsPurchasesError("Vyber náhradní díl.");
+      return;
+    }
+
+    if (!newUnitPrice) {
+      setPartsPurchasesError("Zadej prodejní cenu dílu.");
+      return;
+    }
+
+    const qty = newQuantity ? Number(newQuantity) : 1;
+    if (Number.isNaN(qty) || qty <= 0) {
+      setPartsPurchasesError("Množství musí být kladné číslo.");
+      return;
+    }
+
+    setSavingPartPurchase(true);
+    setPartsPurchasesError(null);
+
+    const body = {
+      part_id: newPartId,
+      purchased_at: newPurchasedAt || null,
+      quantity: newQuantity,
+      unit_price: newUnitPrice,
+      currency: newPartCurrency || "CZK",
+      note: newPartNote || null,
+    };
+
+    const res = await fetch(
+      `/api/customers/${customer.id}/part-purchases`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    setSavingPartPurchase(false);
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setPartsPurchasesError(
+        payload?.error ?? "Nepodařilo se uložit nákup náhradního dílu."
+      );
+      return;
+    }
+
+    const created = (await res.json()) as PartPurchase;
+    setPartPurchases((prev) => [created, ...prev]);
+
+    // reset formuláře
+    setNewPartId("");
+    setNewPurchasedAt(new Date().toISOString().slice(0, 10));
+    setNewQuantity("1");
+    setNewUnitPrice("");
+    setNewPartCurrency("CZK");
+    setNewPartNote("");
+  }
+
+  function startEditPartPurchase(p: PartPurchase) {
+    setEditingPartPurchaseId(p.id);
+    setEditQuantity(String(p.quantity ?? 1));
+    setEditUnitPrice(String(p.unit_price ?? ""));
+    setEditCurrency(p.currency || "CZK");
+    setEditNote(p.note ?? "");
+    setPartsPurchasesError(null);
+  }
+
+  function cancelEditPartPurchase() {
+    setEditingPartPurchaseId(null);
+    setEditQuantity("");
+    setEditUnitPrice("");
+    setEditCurrency("CZK");
+    setEditNote("");
+  }
+
+  async function saveEditPartPurchase(id: string) {
+    const qty = editQuantity ? Number(editQuantity) : 1;
+    if (Number.isNaN(qty) || qty <= 0) {
+      setPartsPurchasesError("Množství musí být kladné číslo.");
+      return;
+    }
+
+    if (!editUnitPrice) {
+      setPartsPurchasesError("Cena musí být vyplněná.");
+      return;
+    }
+
+    const body = {
+      quantity: editQuantity,
+      unit_price: editUnitPrice,
+      currency: editCurrency || "CZK",
+      note: editNote || null,
+    };
+
+    const res = await fetch(`/api/part-purchases/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setPartsPurchasesError(
+        payload?.error ?? "Nepodařilo se upravit nákup náhradního dílu."
+      );
+      return;
+    }
+
+    const updated = (await res.json()) as PartPurchase;
+
+    setPartPurchases((prev) =>
+      prev.map((p) => (p.id === updated.id ? updated : p))
+    );
+
+    cancelEditPartPurchase();
+  }
+
+  async function handleDeletePartPurchase(id: string) {
+    if (
+      !window.confirm("Opravdu smazat tento nákup náhradního dílu?")
+    )
+      return;
+
+    const res = await fetch(`/api/part-purchases/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      setPartsPurchasesError(
+        payload?.error ?? "Nepodařilo se smazat nákup náhradního dílu."
+      );
+      return;
+    }
+
+    setPartPurchases((prev) => prev.filter((p) => p.id !== id));
   }
 
   if (loading && !customer) {
@@ -309,6 +582,7 @@ export default function CustomerDetailPage({
 
   return (
     <main className="space-y-8 max-w-4xl">
+      {/* HLAVIČKA */}
       <header className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold">{customer.name}</h2>
@@ -711,6 +985,316 @@ export default function CustomerDetailPage({
               {savingService
                 ? "Ukládám servisní záznam…"
                 : "Přidat servisní záznam"}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Nákupy náhradních dílů */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-gray-800">
+          Nákupy náhradních dílů
+        </h3>
+
+        {partsPurchasesLoading && (
+          <p className="text-sm text-gray-500">
+            Načítám nákupy náhradních dílů…
+          </p>
+        )}
+
+        {partsPurchasesError && (
+          <p className="text-sm text-red-600">
+            {partsPurchasesError}
+          </p>
+        )}
+
+        {!partsPurchasesLoading &&
+          !partsPurchasesError &&
+          partPurchases.length === 0 && (
+            <p className="text-sm text-gray-500">
+              Zatím žádné nákupy náhradních dílů.
+            </p>
+          )}
+
+        {!partsPurchasesLoading &&
+          !partsPurchasesError &&
+          partPurchases.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border bg-white">
+              <table className="w-full text-xs sm:text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr className="text-left">
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Datum
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Díl
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Množství
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Cena za ks
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Cena celkem
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Poznámka
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Akce
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {partPurchases.map((p) => {
+                    const total = p.quantity * p.unit_price;
+
+                    const isEditing = editingPartPurchaseId === p.id;
+
+                    return (
+                      <tr key={p.id} className="align-top">
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {formatDate(p.purchased_at)}
+                        </td>
+                        <td className="py-2 px-3">
+                          {p.part ? (
+                            <>
+                              <div className="font-medium">
+                                {p.part.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {p.part.part_number}
+                              </div>
+                            </>
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editQuantity}
+                              onChange={(e) =>
+                                setEditQuantity(e.target.value)
+                              }
+                              className="border rounded-md px-2 py-1 text-xs w-20"
+                            />
+                          ) : (
+                            p.quantity
+                          )}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editUnitPrice}
+                              onChange={(e) =>
+                                setEditUnitPrice(e.target.value)
+                              }
+                              className="border rounded-md px-2 py-1 text-xs w-24"
+                            />
+                          ) : (
+                            `${p.unit_price} ${p.currency}`
+                          )}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap text-right">
+                          {total} {p.currency}
+                        </td>
+                        <td className="py-2 px-3">
+                          {isEditing ? (
+                            <textarea
+                              rows={2}
+                              value={editNote}
+                              onChange={(e) =>
+                                setEditNote(e.target.value)
+                              }
+                              className="border rounded-md px-2 py-1 text-xs w-full"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-700 whitespace-pre-wrap">
+                              {p.note ?? "–"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap text-right">
+                          {isEditing ? (
+                            <div className="flex flex-col gap-1 items-end">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  saveEditPartPurchase(p.id)
+                                }
+                                className="text-xs text-green-700 hover:underline"
+                              >
+                                Uložit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditPartPurchase}
+                                className="text-xs text-gray-600 hover:underline"
+                              >
+                                Zrušit
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1 items-end">
+                              <button
+                                type="button"
+                                onClick={() => startEditPartPurchase(p)}
+                                className="text-xs text-blue-700 hover:underline"
+                              >
+                                Upravit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDeletePartPurchase(p.id)
+                                }
+                                className="text-xs text-red-600 hover:underline"
+                              >
+                                Smazat
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+        {/* Formulář pro nový nákup ND */}
+        <div className="border rounded-lg p-4 bg-white space-y-3">
+          <h4 className="text-sm font-semibold text-gray-800">
+            Přidat nákup náhradního dílu
+          </h4>
+
+          {partsLoading && (
+            <p className="text-xs text-gray-500">
+              Načítám seznam dílů…
+            </p>
+          )}
+          {partsError && (
+            <p className="text-xs text-red-600">{partsError}</p>
+          )}
+
+          <form
+            onSubmit={handleCreatePartPurchase}
+            className="space-y-3 text-sm"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Datum nákupu
+                </label>
+                <input
+                  type="date"
+                  value={newPurchasedAt}
+                  onChange={(e) => setNewPurchasedAt(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium mb-1">
+                  Náhradní díl
+                </label>
+                <select
+                  value={newPartId}
+                  onChange={(e) => handleNewPartChange(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                  disabled={partsLoading || !!partsError}
+                >
+                  <option value="">– vyber díl –</option>
+                  {parts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.part_number} – {p.name}
+                      {p.sale_price != null
+                        ? ` (doporučená: ${p.sale_price} Kč)`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Množství
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newQuantity}
+                  onChange={(e) => setNewQuantity(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Cena za ks
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newUnitPrice}
+                  onChange={(e) => setNewUnitPrice(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                  placeholder="např. 950"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Měna
+                </label>
+                <input
+                  type="text"
+                  value={newPartCurrency}
+                  onChange={(e) => setNewPartCurrency(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                />
+              </div>
+
+              <div className="sm:col-span-1">
+                {/* místo na budoucí automatické dopočty, zatím prázdné */}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Poznámka (volitelné)
+              </label>
+              <textarea
+                rows={2}
+                value={newPartNote}
+                onChange={(e) => setNewPartNote(e.target.value)}
+                className="w-full border rounded-md px-2 py-1 text-sm"
+              />
+            </div>
+
+            {partsPurchasesError && (
+              <div className="text-xs text-red-700 border border-red-200 bg-red-50 px-3 py-2 rounded-md">
+                {partsPurchasesError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={savingPartPurchase || partsLoading || !!partsError}
+              className="px-4 py-2 bg-black text-white rounded-md text-xs sm:text-sm disabled:opacity-50"
+            >
+              {savingPartPurchase
+                ? "Ukládám nákup dílu…"
+                : "Přidat nákup dílu"}
             </button>
           </form>
         </div>
