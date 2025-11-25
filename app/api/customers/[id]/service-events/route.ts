@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseServer();
+  const supabase = createSupabaseServerClient();
   const customerId = params.id;
 
   const { data, error } = await supabase
@@ -50,7 +50,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseServer();
+  const supabase = createSupabaseServerClient();
   const customerId = params.id;
 
   const body = await req.json().catch(() => null);
