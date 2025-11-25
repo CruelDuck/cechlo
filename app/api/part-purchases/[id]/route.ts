@@ -96,7 +96,8 @@ export async function PATCH(
           id,
           part_number,
           name,
-          category
+          category,
+          drawing_position
         )
       `
       )
