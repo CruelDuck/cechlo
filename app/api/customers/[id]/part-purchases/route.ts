@@ -32,7 +32,8 @@ export async function GET(
           id,
           part_number,
           name,
-          category
+          category,
+          drawing_position
         )
       `
       )
@@ -153,7 +154,8 @@ export async function POST(
           id,
           part_number,
           name,
-          category
+          category,
+          drawing_position
         )
       `
       )
