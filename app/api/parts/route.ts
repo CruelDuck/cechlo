@@ -1,3 +1,4 @@
+// app/api/parts/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
         sale_price,
         currency,
         drawing_position,
+        vat_rate,
         note
       `
       )
