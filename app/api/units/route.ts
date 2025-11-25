@@ -1,10 +1,9 @@
+// app/api/units/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
-
-type UnitStatus = "in_stock" | "sold" | "reserved" | string;
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,12 +51,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (status && status !== "all") {
-      // filtr podle hlavního statusu (in_stock / sold / reserved ...)
-      query = query.eq("status", status as UnitStatus);
+      query = query.eq("status", status);
     }
 
-    const { data, error } = await query
-      .order("created_at", { ascending: false });
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       console.error("GET /api/units error:", error);
@@ -76,5 +75,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-// pokud máš POST / PUT na units jinde, klidně je nech tak, jak máš
