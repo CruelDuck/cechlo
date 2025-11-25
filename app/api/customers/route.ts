@@ -1,129 +1,126 @@
+// app/api/customers/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { supabaseServer } from "@/lib/supabaseServer";
 
-export const runtime = "nodejs";
-
-type CustomerStatus =
-  | "lead"
-  | "qualified"
-  | "negotiation"
-  | "proposal"
-  | "won"
-  | "lost"
-  | "customer";
-
-function isValidStatus(value: unknown): value is CustomerStatus {
-  return (
-    value === "lead" ||
-    value === "qualified" ||
-    value === "negotiation" ||
-    value === "proposal" ||
-    value === "won" ||
-    value === "lost" ||
-    value === "customer"
-  );
-}
-
-function getSupabase() {
-  return createRouteHandlerClient({
-    cookies,
-  });
-}
-
-// ------- GET /api/customers  – seznam kontaktů -------
 export async function GET(req: NextRequest) {
-  try {
-    const supabase = getSupabase();
-    const url = new URL(req.url);
-    const statusRaw = url.searchParams.get("status");
+  const supabase = supabaseServer();
+  const { searchParams } = new URL(req.url);
 
-    let query = supabase
-      .from("customers")
-      .select("id, name, city, phone, status")
-      .order("created_at", { ascending: false });
+  const q = (searchParams.get("q") ?? "").trim();
+  const role = searchParams.get("role") ?? "all"; // all | customer | supplier
 
-    if (statusRaw && isValidStatus(statusRaw)) {
-      query = query.eq("status", statusRaw);
-    }
+  let query = supabase
+    .from("customers")
+    .select(
+      `
+      id,
+      name,
+      type,
+      contact_person,
+      email,
+      email_secondary,
+      phone,
+      phone_normalized,
+      website,
+      street,
+      city,
+      zip,
+      country,
+      ico,
+      dic,
+      payment_due_days,
+      is_customer,
+      is_supplier,
+      status,
+      note,
+      next_action_at
+    `
+    )
+    .order("name", { ascending: true });
 
-    const { data, error } = await query;
+  if (role === "customer") {
+    query = query.eq("is_customer", true);
+  } else if (role === "supplier") {
+    query = query.eq("is_supplier", true);
+  }
 
-    if (error) {
-      console.error("Supabase GET /customers error:", error);
-      return NextResponse.json(
-        { error: error.message ?? "Chyba při načítání kontaktů." },
-        { status: 500 }
-      );
-    }
+  if (q) {
+    query = query.or(
+      [
+        `name.ilike.%${q}%`,
+        `city.ilike.%${q}%`,
+        `email.ilike.%${q}%`,
+        `phone.ilike.%${q}%`,
+      ].join(",")
+    );
+  }
 
-    return NextResponse.json(data ?? []);
-  } catch (e: any) {
-    console.error("Unexpected error in GET /api/customers:", e);
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
     return NextResponse.json(
-      { error: "Interní chyba serveru při načítání kontaktů." },
+      { error: "Nepodařilo se načíst zákazníky." },
       { status: 500 }
     );
   }
+
+  return NextResponse.json(data ?? []);
 }
 
-// ------- POST /api/customers  – vytvoření kontaktu -------
 export async function POST(req: NextRequest) {
-  try {
-    const form = await req.formData();
+  const supabase = supabaseServer();
+  const body = await req.json().catch(() => null);
 
-    const name = String(form.get("name") || "").trim();
-    const statusRaw = form.get("status") ?? "lead";
-    const phone = (form.get("phone") as string | null) || null;
-    const email = (form.get("email") as string | null) || null;
-    const city = (form.get("city") as string | null) || null;
-    const next_action_at =
-      (form.get("next_action_at") as string | null) || null;
-    const note = (form.get("note") as string | null) || null;
-    const is_hot = form.get("is_hot") ? true : false;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Jméno je povinné." },
-        { status: 400 }
-      );
-    }
-
-    const statusCandidate =
-      typeof statusRaw === "string" ? statusRaw : "lead";
-    const status: CustomerStatus = isValidStatus(statusCandidate)
-      ? statusCandidate
-      : "lead";
-
-    const supabase = getSupabase();
-
-    const { error } = await supabase.from("customers").insert([
-      {
-        name,
-        status,
-        phone,
-        email,
-        city,
-        next_action_at,
-        note,
-        is_hot,
-      },
-    ]);
-
-    if (error) {
-      console.error("Supabase INSERT /customers error:", error);
-      return NextResponse.json(
-        { error: error.message ?? "Chyba při ukládání do databáze." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("Unexpected error in POST /api/customers:", err);
+  if (!body || !body.name?.trim()) {
     return NextResponse.json(
-      { error: "Interní chyba serveru." },
+      { error: "Jméno / název je povinné." },
+      { status: 400 }
+    );
+  }
+
+  const payload = {
+    name: body.name.trim(),
+    type: body.type === "company" ? "company" : "person",
+    contact_person: body.contact_person?.trim() || null,
+    email: body.email?.trim() || null,
+    email_secondary: body.email_secondary?.trim() || null,
+    phone: body.phone?.trim() || null,
+    phone_normalized: body.phone_normalized?.trim() || null,
+    website: body.website?.trim() || null,
+    street: body.street?.trim() || null,
+    city: body.city?.trim() || null,
+    zip: body.zip?.trim() || null,
+    country: body.country?.trim() || "Česko",
+    ico: body.ico?.trim() || null,
+    dic: body.dic?.trim() || null,
+    payment_due_days:
+      body.payment_due_days === "" || body.payment_due_days == null
+        ? null
+        : Number(body.payment_due_days),
+    is_customer: body.is_customer ?? true,
+    is_supplier: body.is_supplier ?? false,
+    status: body.status?.trim() || "active",
+    note: body.note?.trim() || null,
+    next_action_at:
+      body.next_action_at === "" || body.next_action_at == null
+        ? null
+        : body.next_action_at,
+  };
+
+  const { data, error } = await supabase
+    .from("customers")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Nepodařilo se vytvořit zákazníka." },
       { status: 500 }
     );
   }
+
+  return NextResponse.json(data, { status: 201 });
 }
