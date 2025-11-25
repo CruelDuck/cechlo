@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type UnitStatus = "in_stock" | "sold" | "reserved" | "demo" | "scrapped";
-type UnitPrepStatus = "neslozeno" | "slozeno" | "pripraveno" | "odeslano";
+type UnitPrepStatus = "not_assembled" | "assembled" | "ready_to_ship";
 
 type CustomerOption = {
   id: string;
@@ -30,36 +30,14 @@ function statusLabel(status: UnitStatus) {
   }
 }
 
-function normalizePrepStatus(value: any): UnitPrepStatus {
-  if (value == null) return "neslozeno";
-  const v = String(value).toLowerCase().trim();
-
-  if (v === "neslozeno" || v === "nesloženo") return "neslozeno";
-  if (v === "slozeno" || v === "složeno") return "slozeno";
-  if (
-    v === "pripraveno" ||
-    v === "pripravene" ||
-    v === "připraveno" ||
-    v.includes("pripraveno k odeslani") ||
-    v.includes("připraveno k odeslání")
-  ) {
-    return "pripraveno";
-  }
-  if (v === "odeslano" || v === "odesláno") return "odeslano";
-
-  return "neslozeno";
-}
-
 function prepStatusLabel(prep: UnitPrepStatus) {
   switch (prep) {
-    case "neslozeno":
+    case "not_assembled":
       return "Nesloženo";
-    case "slozeno":
+    case "assembled":
       return "Složeno";
-    case "pripraveno":
+    case "ready_to_ship":
       return "Připraveno k odeslání";
-    case "odeslano":
-      return "Odesláno";
     default:
       return "-";
   }
@@ -74,12 +52,15 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
 
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<UnitStatus>("in_stock");
-  const [prepStatus, setPrepStatus] = useState<UnitPrepStatus>("neslozeno");
+  const [prepStatus, setPrepStatus] =
+    useState<UnitPrepStatus>("not_assembled");
   const [salePrice, setSalePrice] = useState<string>("");
   const [saleDate, setSaleDate] = useState<string>("");
 
   const [purchasePrice, setPurchasePrice] = useState<string>("");
   const [purchaseDate, setPurchaseDate] = useState<string>("");
+
+  const [vatRate, setVatRate] = useState<string>("21");
 
   const [customerId, setCustomerId] = useState<string>("");
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
@@ -94,7 +75,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         setLoading(true);
         setError(null);
 
-        // 1) detail jednotky
+        // detail jednotky
         const res = await fetch(`/api/units/${params.id}`);
         if (!res.ok) {
           const payload = await res.json().catch(() => null);
@@ -105,7 +86,9 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           setUnit(data);
           setNote(data.note || "");
           setStatus((data.status as UnitStatus) || "in_stock");
-          setPrepStatus(normalizePrepStatus(data.prep_status));
+          setPrepStatus(
+            (data.prep_status as UnitPrepStatus) || "not_assembled"
+          );
           setSalePrice(
             data.sale_price != null ? String(data.sale_price) : ""
           );
@@ -115,9 +98,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           );
           setPurchaseDate(data.purchase_date || "");
           setCustomerId(data.customer_id || "");
+          setVatRate(
+            data.vat_rate != null ? String(data.vat_rate) : "21"
+          );
         }
 
-        // 2) seznam zákazníků
+        // seznam zákazníků
         const resCustomers = await fetch("/api/customers");
         if (!resCustomers.ok) {
           const payload = await resCustomers.json().catch(() => null);
@@ -155,7 +141,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     const formData = new FormData();
     formData.append("model", unit.model || "");
     formData.append("status", status);
-    formData.append("prep_status", prepStatus); // uložíme kanonickou hodnotu
+    formData.append("prep_status", prepStatus);
     formData.append("note", note);
     formData.append("currency", unit.currency || "CZK");
 
@@ -169,13 +155,18 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       formData.append("customer_id", "");
     }
 
-    // výrobní informace
+    // nákupní informace
     if (purchasePrice) formData.append("purchase_price", purchasePrice);
     if (purchaseDate) formData.append("purchase_date", purchaseDate);
     formData.append(
       "purchase_currency",
       unit?.purchase_currency || "CZK"
     );
+
+    // DPH
+    if (vatRate) {
+      formData.append("vat_rate", vatRate);
+    }
 
     const res = await fetch(`/api/units/${unit.id}`, {
       method: "PATCH",
@@ -215,7 +206,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       );
     } else {
       const payload = await res.json();
-      // aktualizovat unit v paměti, aby se zobrazil odkaz
       setUnit((prev: any) =>
         prev
           ? {
@@ -227,7 +217,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     }
 
     setUploadingInvoice(false);
-    // umožní nahrát stejný soubor znovu
     e.target.value = "";
   }
 
@@ -274,6 +263,13 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/invoices/${invoicePath}`
       : null;
 
+  const salePriceNumber = salePrice ? Number(salePrice) : NaN;
+  const vatNumber = vatRate ? Number(vatRate) : 0;
+  const salePriceWithVat =
+    !Number.isNaN(salePriceNumber) && !Number.isNaN(vatNumber)
+      ? Math.round(salePriceNumber * (1 + vatNumber / 100))
+      : null;
+
   return (
     <main className="space-y-6 max-w-2xl">
       <header className="flex items-center justify-between">
@@ -296,6 +292,16 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               {prepStatusLabel(prepStatus)}
             </span>
           </p>
+          {salePrice && (
+            <p className="text-xs text-gray-500 mt-1">
+              Prodejní cena:{" "}
+              <span className="font-medium">
+                {salePrice} Kč bez DPH
+                {salePriceWithVat != null &&
+                  ` (${salePriceWithVat} Kč s DPH ${vatRate} %)`}
+              </span>
+            </p>
+          )}
         </div>
 
         <Link
@@ -344,10 +350,11 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                   }
                   className="w-full border rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="neslozeno">Nesloženo</option>
-                  <option value="slozeno">Složeno</option>
-                  <option value="pripraveno">Připraveno k odeslání</option>
-                  <option value="odeslano">Odesláno</option>
+                  <option value="not_assembled">Nesloženo</option>
+                  <option value="assembled">Složeno</option>
+                  <option value="ready_to_ship">
+                    Připraveno k odeslání
+                  </option>
                 </select>
               </div>
 
@@ -364,10 +371,10 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Prodejní cena (Kč)
+                  Prodejní cena bez DPH (Kč)
                 </label>
                 <input
                   type="number"
@@ -378,6 +385,37 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  DPH (%)
+                </label>
+                <select
+                  value={vatRate}
+                  onChange={(e) => setVatRate(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="21">21 %</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Prodejní cena s DPH (Kč)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={
+                    salePriceWithVat != null
+                      ? String(salePriceWithVat)
+                      : ""
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Zákazník
