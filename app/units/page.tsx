@@ -1,4 +1,3 @@
-// app/units/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,15 +24,38 @@ type UnitRow = {
   prep_status: string | null;
 };
 
+function normalizePrepStatus(prep: string | null): string {
+  if (!prep) return "";
+
+  const p = prep.toLowerCase();
+
+  if (p === "neslozeno" || p === "nesloženo") return "neslozeno";
+  if (p === "slozeno" || p === "složeno") return "slozeno";
+
+  if (
+    p === "pripraveno" ||
+    p === "pripravene" ||
+    p === "pripraveno k odeslani" ||
+    p === "připraveno k odeslani" ||
+    p === "připraveno k odeslání"
+  ) {
+    return "pripraveno";
+  }
+
+  if (p === "odeslano" || p === "odesláno") return "odeslano";
+
+  return p;
+}
+
 function getPrepStatusLabel(prep: string | null): string {
-  switch (prep) {
+  const p = normalizePrepStatus(prep);
+
+  switch (p) {
     case "neslozeno":
       return "Nesloženo";
     case "slozeno":
       return "Složeno";
     case "pripraveno":
-    case "pripravene":
-    case "pripraveno_k_odeslani":
       return "Připraveno k odeslání";
     case "odeslano":
       return "Odesláno";
@@ -43,14 +65,14 @@ function getPrepStatusLabel(prep: string | null): string {
 }
 
 function getPrepStatusClass(prep: string | null): string {
-  switch (prep) {
+  const p = normalizePrepStatus(prep);
+
+  switch (p) {
     case "neslozeno":
       return "bg-red-100 text-red-800 border-red-200";
     case "slozeno":
       return "bg-yellow-100 text-yellow-800 border-yellow-200";
     case "pripraveno":
-    case "pripravene":
-    case "pripraveno_k_odeslani":
       return "bg-blue-100 text-blue-800 border-blue-200";
     case "odeslano":
       return "bg-green-100 text-green-800 border-green-200";
@@ -212,10 +234,7 @@ export default function UnitsPage() {
           <tbody className="divide-y">
             {!loading && !error && units.length === 0 && (
               <tr>
-                <td
-                  colSpan={7}
-                  className="p-4 text-center text-gray-500"
-                >
+                <td colSpan={7} className="p-4 text-center text-gray-500">
                   Zatím žádné vozíky.
                 </td>
               </tr>
