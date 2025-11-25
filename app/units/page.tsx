@@ -1,8 +1,8 @@
+// app/units/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
 
 type UnitRow = {
   id: string;
@@ -31,8 +31,8 @@ function getPrepStatusLabel(prep: string | null): string {
       return "Nesloženo";
     case "slozeno":
       return "Složeno";
-    case "pripravene":
     case "pripraveno":
+    case "pripravene":
     case "pripraveno_k_odeslani":
       return "Připraveno k odeslání";
     case "odeslano":
@@ -48,8 +48,8 @@ function getPrepStatusClass(prep: string | null): string {
       return "bg-red-100 text-red-800 border-red-200";
     case "slozeno":
       return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "pripravene":
     case "pripraveno":
+    case "pripravene":
     case "pripraveno_k_odeslani":
       return "bg-blue-100 text-blue-800 border-blue-200";
     case "odeslano":
@@ -140,11 +140,10 @@ export default function UnitsPage() {
     <main className="space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Vozíky
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight">Vozíky</h2>
           <p className="text-sm text-gray-500">
-            Přehled všech vozíků včetně stavu přípravy (Nesloženo, Složeno, Připraveno, Odesláno).
+            Přehled všech vozíků včetně stavu přípravy (Nesloženo, Složeno,
+            Připraveno k odeslání, Odesláno).
           </p>
         </div>
       </header>
@@ -198,9 +197,7 @@ export default function UnitsPage() {
               <th className="py-2 px-3 font-medium text-gray-700">
                 Sériové číslo
               </th>
-              <th className="py-2 px-3 font-medium text-gray-700">
-                Model
-              </th>
+              <th className="py-2 px-3 font-medium text-gray-700">Model</th>
               <th className="py-2 px-3 font-medium text-gray-700">
                 Umístění
               </th>
@@ -225,14 +222,15 @@ export default function UnitsPage() {
             )}
 
             {units.map((u) => {
-              const sold =
-                u.status === "sold" || (u.sale_date && u.sale_price != null);
+              const isSold =
+                u.status === "sold" ||
+                (u.sale_date !== null && u.sale_price !== null);
 
               return (
                 <tr
                   key={u.id}
                   className={`cursor-pointer hover:bg-gray-50 ${
-                    sold ? "bg-green-50" : ""
+                    isSold ? "bg-green-50" : ""
                   }`}
                   onClick={() => handleRowClick(u.id)}
                 >
