@@ -63,11 +63,13 @@ type PartPurchase = {
   unit_price: number;
   currency: string;
   note: string | null;
+  service_event_id?: string | null;
   part?: {
     id: string;
     part_number: string;
     name: string;
     category?: string | null;
+    drawing_position?: number | null;
   } | null;
 };
 
@@ -144,6 +146,8 @@ export default function CustomerDetailPage({
   const [newUnitPrice, setNewUnitPrice] = useState<string>("");
   const [newPartCurrency, setNewPartCurrency] = useState<string>("CZK");
   const [newPartNote, setNewPartNote] = useState<string>("");
+  const [newPartServiceEventId, setNewPartServiceEventId] =
+    useState<string>("");
   const [savingPartPurchase, setSavingPartPurchase] = useState(false);
 
   // editace existujícího nákupu ND
@@ -393,13 +397,18 @@ export default function CustomerDetailPage({
     }
 
     setServiceEvents((prev) => prev.filter((s) => s.id !== id));
+    // zároveň odfiltrujeme díly navázané na tenhle zásah
+    setPartPurchases((prev) =>
+      prev.map((p) =>
+        p.service_event_id === id ? { ...p, service_event_id: null } : p
+      )
+    );
   }
 
   // --- Nákupy ND ---
 
   function handleNewPartChange(partId: string) {
     setNewPartId(partId);
-    // předvyplnit cenu podle prodejní ceny dílu
     const found = parts.find((p) => p.id === partId);
     if (found && found.sale_price != null) {
       setNewUnitPrice(String(found.sale_price));
@@ -436,6 +445,7 @@ export default function CustomerDetailPage({
       unit_price: newUnitPrice,
       currency: newPartCurrency || "CZK",
       note: newPartNote || null,
+      service_event_id: newPartServiceEventId || null,
     };
 
     const res = await fetch(
@@ -462,13 +472,13 @@ export default function CustomerDetailPage({
     const created = (await res.json()) as PartPurchase;
     setPartPurchases((prev) => [created, ...prev]);
 
-    // reset formuláře
     setNewPartId("");
     setNewPurchasedAt(new Date().toISOString().slice(0, 10));
     setNewQuantity("1");
     setNewUnitPrice("");
     setNewPartCurrency("CZK");
     setNewPartNote("");
+    setNewPartServiceEventId("");
   }
 
   function startEditPartPurchase(p: PartPurchase) {
@@ -775,6 +785,9 @@ export default function CustomerDetailPage({
                     Název
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
+                    Díly
+                  </th>
+                  <th className="py-2 px-3 font-medium text-gray-700">
                     Cena celkem
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
@@ -783,45 +796,89 @@ export default function CustomerDetailPage({
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {serviceEvents.map((s) => (
-                  <tr key={s.id} className="align-top">
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {formatDate(s.performed_at)}
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {s.unit
-                        ? `${s.unit.model ?? ""} ${
-                            s.unit.serial_number ?? ""
-                          }`
-                        : "–"}
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {s.type ?? "–"}
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="font-medium">{s.title}</div>
-                      {s.description && (
-                        <div className="text-xs text-gray-600">
-                          {s.description}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap text-right">
-                      {s.total_cost != null
-                        ? `${s.total_cost} ${s.currency}`
-                        : "–"}
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteServiceEvent(s.id)}
-                        className="text-xs text-red-600 hover:underline"
-                      >
-                        Smazat
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {serviceEvents.map((s) => {
+                  const eventParts = partPurchases.filter(
+                    (p) => p.service_event_id === s.id
+                  );
+
+                  return (
+                    <tr key={s.id} className="align-top">
+                      <td className="py-2 px-3 whitespace-nowrap">
+                        {formatDate(s.performed_at)}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap">
+                        {s.unit
+                          ? `${s.unit.model ?? ""} ${
+                              s.unit.serial_number ?? ""
+                            }`
+                          : "–"}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap">
+                        {s.type ?? "–"}
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="font-medium">{s.title}</div>
+                        {s.description && (
+                          <div className="text-xs text-gray-600">
+                            {s.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 px-3">
+                        {eventParts.length === 0 ? (
+                          <span className="text-xs text-gray-400">–</span>
+                        ) : (
+                          <ul className="space-y-1">
+                            {eventParts.map((p) => (
+                              <li
+                                key={p.id}
+                                className="text-xs text-gray-700"
+                              >
+                                {p.part ? (
+                                  <>
+                                    <span className="font-medium">
+                                      {p.part.name}
+                                    </span>
+                                    {typeof p.part.drawing_position ===
+                                      "number" && (
+                                      <span className="text-gray-500">
+                                        {" "}
+                                        (poz. {p.part.drawing_position})
+                                      </span>
+                                    )}
+                                    <span className="text-gray-500">
+                                      {" "}
+                                      – {p.quantity} ks, {p.unit_price}{" "}
+                                      {p.currency}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    Díl ID {p.id} – {p.quantity} ks
+                                  </>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap text-right">
+                        {s.total_cost != null
+                          ? `${s.total_cost} ${s.currency}`
+                          : "–"}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteServiceEvent(s.id)}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Smazat
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1030,6 +1087,9 @@ export default function CustomerDetailPage({
                       Díl
                     </th>
                     <th className="py-2 px-3 font-medium text-gray-700">
+                      Pozice
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
                       Množství
                     </th>
                     <th className="py-2 px-3 font-medium text-gray-700">
@@ -1049,7 +1109,6 @@ export default function CustomerDetailPage({
                 <tbody className="divide-y">
                   {partPurchases.map((p) => {
                     const total = p.quantity * p.unit_price;
-
                     const isEditing = editingPartPurchaseId === p.id;
 
                     return (
@@ -1070,6 +1129,12 @@ export default function CustomerDetailPage({
                           ) : (
                             "–"
                           )}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {p.part &&
+                          typeof p.part.drawing_position === "number"
+                            ? p.part.drawing_position
+                            : "–"}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           {isEditing ? (
@@ -1264,8 +1329,24 @@ export default function CustomerDetailPage({
                 />
               </div>
 
-              <div className="sm:col-span-1">
-                {/* místo na budoucí automatické dopočty, zatím prázdné */}
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Servisní zásah (volitelné)
+                </label>
+                <select
+                  value={newPartServiceEventId}
+                  onChange={(e) =>
+                    setNewPartServiceEventId(e.target.value)
+                  }
+                  className="w-full border rounded-md px-2 py-1 text-sm"
+                >
+                  <option value="">– nepřiřazovat –</option>
+                  {serviceEvents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {formatDate(s.performed_at)} – {s.title}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
