@@ -54,6 +54,7 @@ type PartOption = {
   name: string;
   sale_price: number | null;
   drawing_position: number | null;
+  vat_rate: number | null;
 };
 
 type PartPurchase = {
@@ -64,12 +65,14 @@ type PartPurchase = {
   currency: string;
   note: string | null;
   service_event_id?: string | null;
+  vat_rate?: number | null;
   part?: {
     id: string;
     part_number: string;
     name: string;
     category?: string | null;
     drawing_position?: number | null;
+    vat_rate?: number | null;
   } | null;
 };
 
@@ -148,6 +151,7 @@ export default function CustomerDetailPage({
   const [newPartNote, setNewPartNote] = useState<string>("");
   const [newPartServiceEventId, setNewPartServiceEventId] =
     useState<string>("");
+  const [newPartVatRate, setNewPartVatRate] = useState<string>("21");
   const [savingPartPurchase, setSavingPartPurchase] = useState(false);
 
   // editace nákupu ND
@@ -157,6 +161,7 @@ export default function CustomerDetailPage({
   const [editUnitPrice, setEditUnitPrice] = useState<string>("");
   const [editCurrency, setEditCurrency] = useState<string>("CZK");
   const [editNote, setEditNote] = useState<string>("");
+  const [editVatRate, setEditVatRate] = useState<string>("21");
 
   useEffect(() => {
     async function loadCustomer() {
@@ -261,6 +266,7 @@ export default function CustomerDetailPage({
           name: p.name,
           sale_price: p.sale_price ?? null,
           drawing_position: p.drawing_position ?? null,
+          vat_rate: p.vat_rate ?? null,
         }));
         setParts(options);
       } catch (e) {
@@ -423,8 +429,15 @@ export default function CustomerDetailPage({
   function handleNewPartChange(partId: string) {
     setNewPartId(partId);
     const found = parts.find((p) => p.id === partId);
-    if (found && found.sale_price != null) {
-      setNewUnitPrice(String(found.sale_price));
+    if (found) {
+      if (found.sale_price != null) {
+        setNewUnitPrice(String(found.sale_price));
+      }
+      if (found.vat_rate != null) {
+        setNewPartVatRate(String(found.vat_rate));
+      } else {
+        setNewPartVatRate("21");
+      }
     }
   }
 
@@ -459,6 +472,7 @@ export default function CustomerDetailPage({
       currency: newPartCurrency || "CZK",
       note: newPartNote || null,
       service_event_id: newPartServiceEventId || null,
+      vat_rate: newPartVatRate || "21",
     };
 
     const res = await fetch(
@@ -492,6 +506,7 @@ export default function CustomerDetailPage({
     setNewPartCurrency("CZK");
     setNewPartNote("");
     setNewPartServiceEventId("");
+    setNewPartVatRate("21");
   }
 
   function startEditPartPurchase(p: PartPurchase) {
@@ -500,6 +515,7 @@ export default function CustomerDetailPage({
     setEditUnitPrice(String(p.unit_price ?? ""));
     setEditCurrency(p.currency || "CZK");
     setEditNote(p.note ?? "");
+    setEditVatRate(String(p.vat_rate ?? 21));
     setPartsPurchasesError(null);
   }
 
@@ -509,6 +525,7 @@ export default function CustomerDetailPage({
     setEditUnitPrice("");
     setEditCurrency("CZK");
     setEditNote("");
+    setEditVatRate("21");
   }
 
   async function saveEditPartPurchase(id: string) {
@@ -528,6 +545,7 @@ export default function CustomerDetailPage({
       unit_price: editUnitPrice,
       currency: editCurrency || "CZK",
       note: editNote || null,
+      vat_rate: editVatRate || "21",
     };
 
     const res = await fetch(`/api/part-purchases/${id}`, {
@@ -842,37 +860,45 @@ export default function CustomerDetailPage({
                           <span className="text-xs text-gray-400">–</span>
                         ) : (
                           <ul className="space-y-1">
-                            {eventParts.map((p) => (
-                              <li
-                                key={p.id}
-                                className="text-xs text-gray-700"
-                              >
-                                {p.part ? (
-                                  <>
-                                    <span className="font-medium">
-                                      {p.part.name}
-                                    </span>
-                                    {typeof p.part.drawing_position ===
-                                      "number" && (
+                            {eventParts.map((p) => {
+                              const vat = p.vat_rate ?? 21;
+                              const priceWithVat = Math.round(
+                                p.unit_price * (1 + vat / 100)
+                              );
+                              return (
+                                <li
+                                  key={p.id}
+                                  className="text-xs text-gray-700"
+                                >
+                                  {p.part ? (
+                                    <>
+                                      <span className="font-medium">
+                                        {p.part.name}
+                                      </span>
+                                      {typeof p.part.drawing_position ===
+                                        "number" && (
+                                        <span className="text-gray-500">
+                                          {" "}
+                                          (poz. {p.part.drawing_position})
+                                        </span>
+                                      )}
                                       <span className="text-gray-500">
                                         {" "}
-                                        (poz. {p.part.drawing_position})
+                                        – {p.quantity} ks,{" "}
+                                        {p.unit_price} {p.currency} bez
+                                        DPH / {priceWithVat} {p.currency} s
+                                        DPH ({vat}%)
                                       </span>
-                                    )}
-                                    <span className="text-gray-500">
-                                      {" "}
-                                      – {p.quantity} ks, {p.unit_price}{" "}
+                                    </>
+                                  ) : (
+                                    <>
+                                      Díl – {p.quantity} ks, {p.unit_price}{" "}
                                       {p.currency}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    Díl – {p.quantity} ks, {p.unit_price}{" "}
-                                    {p.currency}
-                                  </>
-                                )}
-                              </li>
-                            ))}
+                                    </>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                         )}
                       </td>
@@ -1131,7 +1157,14 @@ export default function CustomerDetailPage({
                 </thead>
                 <tbody className="divide-y">
                   {partPurchases.map((p) => {
-                    const total = p.quantity * p.unit_price;
+                    const totalNet = p.quantity * p.unit_price;
+                    const vat = p.vat_rate ?? 21;
+                    const priceWithVat = Math.round(
+                      p.unit_price * (1 + vat / 100)
+                    );
+                    const totalWithVat = Math.round(
+                      totalNet * (1 + vat / 100)
+                    );
                     const isEditing = editingPartPurchaseId === p.id;
 
                     return (
@@ -1183,21 +1216,55 @@ export default function CustomerDetailPage({
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           {isEditing ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editUnitPrice}
-                              onChange={(e) =>
-                                setEditUnitPrice(e.target.value)
-                              }
-                              className="border rounded-md px-2 py-1 text-xs w-24"
-                            />
+                            <>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editUnitPrice}
+                                onChange={(e) =>
+                                  setEditUnitPrice(e.target.value)
+                                }
+                                className="border rounded-md px-2 py-1 text-xs w-24 mb-1"
+                              />
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">
+                                  DPH
+                                </span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={editVatRate}
+                                  onChange={(e) =>
+                                    setEditVatRate(e.target.value)
+                                  }
+                                  className="border rounded-md px-2 py-1 text-xs w-16"
+                                />
+                                <span className="text-xs text-gray-500">
+                                  %
+                                </span>
+                              </div>
+                            </>
                           ) : (
-                            `${p.unit_price} ${p.currency}`
+                            <div className="text-xs">
+                              <div>
+                                {p.unit_price} {p.currency} bez DPH
+                              </div>
+                              <div className="text-gray-500">
+                                {priceWithVat} {p.currency} s DPH ({vat}
+                                %)
+                              </div>
+                            </div>
                           )}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap text-right">
-                          {total} {p.currency}
+                          <div className="text-xs">
+                            <div>
+                              {totalNet} {p.currency} bez DPH
+                            </div>
+                            <div className="text-gray-500">
+                              {totalWithVat} {p.currency} s DPH
+                            </div>
+                          </div>
                         </td>
                         <td className="py-2 px-3">
                           {isEditing ? (
@@ -1325,7 +1392,7 @@ export default function CustomerDetailPage({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">
                   Množství
@@ -1341,7 +1408,7 @@ export default function CustomerDetailPage({
 
               <div>
                 <label className="block text-xs font-medium mb-1">
-                  Cena za ks
+                  Cena za ks (bez DPH)
                 </label>
                 <input
                   type="number"
@@ -1350,6 +1417,19 @@ export default function CustomerDetailPage({
                   onChange={(e) => setNewUnitPrice(e.target.value)}
                   className="w-full border rounded-md px-2 py-1 text-sm"
                   placeholder="např. 950"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  DPH (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newPartVatRate}
+                  onChange={(e) => setNewPartVatRate(e.target.value)}
+                  className="w-full border rounded-md px-2 py-1 text-sm"
                 />
               </div>
 
