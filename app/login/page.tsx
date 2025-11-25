@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
+import Link from "next/link";
+
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -74,4 +77,14 @@ export default function LoginPage() {
       </div>
     </main>
   );
+  <p className="mt-2 text-xs text-gray-500">
+  Zapomněl jsi heslo?{" "}
+  <Link
+    href="/auth/forgot-password"
+    className="text-blue-600 hover:underline"
+  >
+    Obnovit heslo
+  </Link>
+</p>
+
 }
