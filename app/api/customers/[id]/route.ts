@@ -1,12 +1,34 @@
-// app/api/customers/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
+
+async function parseBody(req: NextRequest): Promise<Record<string, any>> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return (await req.json()) as Record<string, any>;
+  }
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+    const obj: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      obj[key] = typeof value === "string" ? value : String(value);
+    });
+    return obj;
+  }
+
+  try {
+    return (await req.json()) as Record<string, any>;
+  } catch {
+    return {};
+  }
+}
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseServer();
+  const supabase = createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("customers")
@@ -14,32 +36,28 @@ export async function GET(
       `
       id,
       name,
-      type,
-      contact_person,
+      company,
       email,
-      email_secondary,
       phone,
-      phone_normalized,
-      website,
       street,
       city,
       zip,
       country,
-      ico,
-      dic,
-      payment_due_days,
-      is_customer,
-      is_supplier,
       status,
       note,
-      next_action_at
+      next_action_at,
+      registration_no,
+      vat_no,
+      web,
+      created_at,
+      updated_at
     `
     )
     .eq("id", params.id)
     .single();
 
   if (error) {
-    console.error(error);
+    console.error("GET /api/customers/[id] error:", error);
     return NextResponse.json(
       { error: "Zákazníka se nepodařilo načíst." },
       { status: 404 }
@@ -53,79 +71,85 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseServer();
-  const body = await req.json().catch(() => null);
+  const supabase = createSupabaseServerClient();
+  const body = await parseBody(req);
 
-  if (!body) {
+  const {
+    name,
+    company,
+    email,
+    phone,
+    street,
+    city,
+    zip,
+    country,
+    status,
+    note,
+    next_action_at,
+    registration_no,
+    vat_no,
+    web,
+  } = body;
+
+  if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json(
-      { error: "Chybí data pro aktualizaci." },
+      { error: "Jméno / název zákazníka je povinné." },
       { status: 400 }
     );
   }
 
-  const payload: any = {};
-
-  const assignText = (field: string) => {
-    if (field in body) {
-      const value = body[field];
-      payload[field] =
-        value === "" || value == null ? null : String(value).trim();
-    }
+  const updatePayload = {
+    name: name.trim(),
+    company: company !== undefined ? (company ? String(company).trim() : null) : undefined,
+    email: email !== undefined ? (email ? String(email).trim() : null) : undefined,
+    phone: phone !== undefined ? (phone ? String(phone).trim() : null) : undefined,
+    street: street !== undefined ? (street ? String(street).trim() : null) : undefined,
+    city: city !== undefined ? (city ? String(city).trim() : null) : undefined,
+    zip: zip !== undefined ? (zip ? String(zip).trim() : null) : undefined,
+    country: country !== undefined ? (country ? String(country).trim() : null) : undefined,
+    status: status !== undefined ? String(status).trim() : undefined,
+    note: note !== undefined ? (note ? String(note).trim() : null) : undefined,
+    next_action_at: next_action_at !== undefined ? next_action_at || null : undefined,
+    registration_no:
+      registration_no !== undefined
+        ? registration_no
+          ? String(registration_no).trim()
+          : null
+        : undefined,
+    vat_no:
+      vat_no !== undefined ? (vat_no ? String(vat_no).trim() : null) : undefined,
+    web: web !== undefined ? (web ? String(web).trim() : null) : undefined,
   };
-
-  assignText("name");
-  assignText("contact_person");
-  assignText("email");
-  assignText("email_secondary");
-  assignText("phone");
-  assignText("phone_normalized");
-  assignText("website");
-  assignText("street");
-  assignText("city");
-  assignText("zip");
-  assignText("country");
-  assignText("ico");
-  assignText("dic");
-  assignText("note");
-
-  if ("type" in body) {
-    payload.type = body.type === "company" ? "company" : "person";
-  }
-
-  if ("payment_due_days" in body) {
-    const v = body.payment_due_days;
-    payload.payment_due_days =
-      v === "" || v == null ? null : Number(v);
-  }
-
-  if ("is_customer" in body) {
-    payload.is_customer = Boolean(body.is_customer);
-  }
-
-  if ("is_supplier" in body) {
-    payload.is_supplier = Boolean(body.is_supplier);
-  }
-
-  if ("status" in body) {
-    const v = body.status;
-    payload.status =
-      v === "" || v == null ? "active" : String(v).trim();
-  }
-
-  if ("next_action_at" in body) {
-    const v = body.next_action_at;
-    payload.next_action_at = v === "" || v == null ? null : v;
-  }
 
   const { data, error } = await supabase
     .from("customers")
-    .update(payload)
+    .update(updatePayload)
     .eq("id", params.id)
-    .select()
+    .select(
+      `
+      id,
+      name,
+      company,
+      email,
+      phone,
+      street,
+      city,
+      zip,
+      country,
+      status,
+      note,
+      next_action_at,
+      registration_no,
+      vat_no,
+      web,
+      created_at,
+      updated_at
+    `
+    )
     .single();
 
   if (error) {
-    console.error(error);
+    console.error("PATCH /api/customers/[id] error:", error, "payload:", updatePayload);
     return NextResponse.json(
       { error: "Nepodařilo se uložit změny zákazníka." },
       { status: 500 }
@@ -136,10 +160,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseServer();
+  const supabase = createSupabaseServerClient();
 
   const { error } = await supabase
     .from("customers")
@@ -147,7 +171,7 @@ export async function DELETE(
     .eq("id", params.id);
 
   if (error) {
-    console.error(error);
+    console.error("DELETE /api/customers/[id] error:", error);
     return NextResponse.json(
       { error: "Nepodařilo se smazat zákazníka." },
       { status: 500 }
