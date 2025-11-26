@@ -5,6 +5,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
+// GET – seznam vozíků
 export async function GET(req: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
@@ -53,8 +54,6 @@ export async function GET(req: NextRequest) {
           note.ilike.${like}
         `
       );
-      // Kdybys chtěl hledat i podle města zákazníka, museli bychom to řešit trochu jinak,
-      // to teď nechávám stranou, ať nerozbíjíme dotaz.
     }
 
     if (status && status !== "all") {
@@ -73,7 +72,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Namapujeme nested customer → plochá pole customer_city / customer_name
     const mapped =
       (data ?? []).map((row: any) => ({
         id: row.id,
@@ -94,7 +92,6 @@ export async function GET(req: NextRequest) {
         note: row.note,
         model: row.model,
         prep_status: row.prep_status,
-        // nové:
         customer_city: row.customer?.city ?? null,
         customer_name: row.customer?.name ?? null,
       })) ?? [];
@@ -102,6 +99,126 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(mapped);
   } catch (e) {
     console.error("GET /api/units unexpected error:", e);
+    return NextResponse.json(
+      { error: "Interní chyba serveru." },
+      { status: 500 }
+    );
+  }
+}
+
+// POST – vytvoření nového vozíku z formuláře /units/new
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const formData = await req.formData();
+
+    const serial_number = String(formData.get("serial_number") ?? "").trim();
+    const modelRaw = formData.get("model");
+    const noteRaw = formData.get("note");
+
+    if (!serial_number) {
+      return NextResponse.json(
+        { error: "Sériové číslo je povinné." },
+        { status: 400 }
+      );
+    }
+
+    const model =
+      typeof modelRaw === "string" && modelRaw.trim() !== ""
+        ? modelRaw.trim()
+        : null;
+
+    const note =
+      typeof noteRaw === "string" && noteRaw.trim() !== ""
+        ? noteRaw
+        : null;
+
+    const insertPayload: any = {
+      serial_number,
+      model,
+      note,
+      // výchozí hodnoty
+      status: "in_stock",
+      prep_status: "not_assembled",
+      currency: "CZK",
+      purchase_currency: "CZK",
+    };
+
+    const { data, error } = await supabase
+      .from("units")
+      .insert(insertPayload)
+      .select(
+        `
+        id,
+        created_at,
+        updated_at,
+        product_model_id,
+        serial_number,
+        status,
+        warehouse_location,
+        customer_id,
+        purchase_price,
+        purchase_currency,
+        purchase_date,
+        sale_id,
+        sale_date,
+        sale_price,
+        currency,
+        note,
+        model,
+        prep_status,
+        customer:customers (
+          id,
+          name,
+          city
+        )
+      `
+      )
+      .single();
+
+    if (error) {
+      console.error("POST /api/units error:", error);
+
+      // typicky unique violation na serial_number
+      if ((error as any).code === "23505") {
+        return NextResponse.json(
+          { error: "Vozík se stejným sériovým číslem už existuje." },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Nepodařilo se uložit vozík." },
+        { status: 500 }
+      );
+    }
+
+    const mapped = {
+      id: data.id,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      product_model_id: data.product_model_id,
+      serial_number: data.serial_number,
+      status: data.status,
+      warehouse_location: data.warehouse_location,
+      customer_id: data.customer_id,
+      purchase_price: data.purchase_price,
+      purchase_currency: data.purchase_currency,
+      purchase_date: data.purchase_date,
+      sale_id: data.sale_id,
+      sale_date: data.sale_date,
+      sale_price: data.sale_price,
+      currency: data.currency,
+      note: data.note,
+      model: data.model,
+      prep_status: data.prep_status,
+      customer_city: data.customer?.city ?? null,
+      customer_name: data.customer?.name ?? null,
+    };
+
+    return NextResponse.json(mapped, { status: 201 });
+  } catch (e) {
+    console.error("POST /api/units unexpected error:", e);
     return NextResponse.json(
       { error: "Interní chyba serveru." },
       { status: 500 }
