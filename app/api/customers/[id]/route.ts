@@ -50,7 +50,7 @@ export async function GET(
       registration_no,
       vat_no,
       web,
-      type,        -- 👈 přidáno
+      type,
       created_at,
       updated_at
     `
@@ -92,7 +92,7 @@ export async function PATCH(
     registration_no,
     vat_no,
     web,
-    type,          // 👈 přijímáme type z body
+    type,
   } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
@@ -102,14 +102,12 @@ export async function PATCH(
     );
   }
 
-  // normalizace typu – jen "person" nebo "company"
   let normalizedType: "person" | "company" | undefined = undefined;
   if (type !== undefined) {
     const t = String(type).trim();
     if (t === "person" || t === "company") {
       normalizedType = t;
     } else if (!t) {
-      // prázdný string -> radši default person
       normalizedType = "person";
     }
   }
@@ -143,7 +141,6 @@ export async function PATCH(
     web: web !== undefined ? (web ? String(web).trim() : null) : undefined,
   };
 
-  // přidáme type do payloadu jen pokud je definovaný
   if (normalizedType !== undefined) {
     updatePayload.type = normalizedType;
   }
@@ -169,7 +166,7 @@ export async function PATCH(
       registration_no,
       vat_no,
       web,
-      type,         -- 👈 vracíme i type
+      type,
       created_at,
       updated_at
     `
