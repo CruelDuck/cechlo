@@ -1,13 +1,13 @@
+// app/api/uploads/invoice/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const formData = await req.formData();
 
     const file = formData.get("file");
@@ -38,8 +38,7 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split(".").pop() ?? "bin";
     const path = `${type}/${id}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase
-      .storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from("invoices")
       .upload(path, file, {
         cacheControl: "3600",
@@ -47,53 +46,53 @@ export async function POST(req: NextRequest) {
       });
 
     if (uploadError) {
-      console.error(uploadError);
+      console.error("Upload faktury do bucketu 'invoices' selhal:", uploadError);
       return NextResponse.json(
-        { error: "Nepodařilo se nahrát soubor do Storage." },
+        {
+          error:
+            "Nepodařilo se nahrát soubor do Storage: " +
+            (uploadError.message ?? "Neznámá chyba."),
+        },
         { status: 500 }
       );
     }
 
-    const { data: publicData } = supabase
-      .storage
-      .from("invoices")
-      .getPublicUrl(path);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("invoices").getPublicUrl(uploadData.path);
 
-    const invoiceUrl = publicData.publicUrl;
+    let updateError = null;
 
     if (type === "service_event") {
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("service_events")
-        .update({ invoice_url: invoiceUrl })
+        .update({ invoice_url: publicUrl })
         .eq("id", id);
-
-      if (updateError) {
-        console.error(updateError);
-        return NextResponse.json(
-          { error: "Soubor se nahrál, ale nepodařilo se aktualizovat servisní zásah." },
-          { status: 500 }
-        );
-      }
+      updateError = error;
     } else {
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("part_purchases")
-        .update({ invoice_url: invoiceUrl })
+        .update({ invoice_url: publicUrl })
         .eq("id", id);
-
-      if (updateError) {
-        console.error(updateError);
-        return NextResponse.json(
-          { error: "Soubor se nahrál, ale nepodařilo se aktualizovat nákup dílu." },
-          { status: 500 }
-        );
-      }
+      updateError = error;
     }
 
-    return NextResponse.json({ invoice_url: invoiceUrl });
+    if (updateError) {
+      console.error(
+        "Uložení invoice_url do tabulky selhalo:",
+        updateError
+      );
+      return NextResponse.json(
+        { error: "Soubor se nahrál, ale nepodařilo se uložit URL faktury." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ invoice_url: publicUrl });
   } catch (e) {
-    console.error(e);
+    console.error("Neočekávaná chyba v POST /api/uploads/invoice:", e);
     return NextResponse.json(
-      { error: "Neočekávaná chyba při nahrávání faktury." },
+      { error: "Interní chyba serveru." },
       { status: 500 }
     );
   }
