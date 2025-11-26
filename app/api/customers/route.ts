@@ -1,66 +1,61 @@
-// app/api/customers/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-export async function GET(req: NextRequest) {
-  const supabase = supabaseServer();
-  const { searchParams } = new URL(req.url);
+async function parseBody(req: NextRequest): Promise<Record<string, any>> {
+  const contentType = req.headers.get("content-type") || "";
 
-  const q = (searchParams.get("q") ?? "").trim();
-  const role = searchParams.get("role") ?? "all"; // all | customer | supplier
+  if (contentType.includes("application/json")) {
+    return (await req.json()) as Record<string, any>;
+  }
 
-  let query = supabase
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+    const obj: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      obj[key] = typeof value === "string" ? value : String(value);
+    });
+    return obj;
+  }
+
+  try {
+    return (await req.json()) as Record<string, any>;
+  } catch {
+    return {};
+  }
+}
+
+export async function GET(_req: NextRequest) {
+  const supabase = createSupabaseServerClient();
+
+  const { data, error } = await supabase
     .from("customers")
     .select(
       `
       id,
       name,
-      type,
-      contact_person,
+      company,
       email,
-      email_secondary,
       phone,
-      phone_normalized,
-      website,
       street,
       city,
       zip,
       country,
-      ico,
-      dic,
-      payment_due_days,
-      is_customer,
-      is_supplier,
       status,
       note,
-      next_action_at
+      next_action_at,
+      registration_no,
+      vat_no,
+      web,
+      created_at,
+      updated_at
     `
     )
-    .order("name", { ascending: true });
-
-  if (role === "customer") {
-    query = query.eq("is_customer", true);
-  } else if (role === "supplier") {
-    query = query.eq("is_supplier", true);
-  }
-
-  if (q) {
-    query = query.or(
-      [
-        `name.ilike.%${q}%`,
-        `city.ilike.%${q}%`,
-        `email.ilike.%${q}%`,
-        `phone.ilike.%${q}%`,
-      ].join(",")
-    );
-  }
-
-  const { data, error } = await query;
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error(error);
+    console.error("GET /api/customers error:", error);
     return NextResponse.json(
-      { error: "Nepodařilo se načíst zákazníky." },
+      { error: "Nepodařilo se načíst seznam zákazníků." },
       { status: 500 }
     );
   }
@@ -69,53 +64,79 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = supabaseServer();
-  const body = await req.json().catch(() => null);
+  const supabase = createSupabaseServerClient();
 
-  if (!body || !body.name?.trim()) {
+  const body = await parseBody(req);
+
+  const {
+    name,
+    company,
+    email,
+    phone,
+    street,
+    city,
+    zip,
+    country,
+    status,
+    note,
+    next_action_at,
+    registration_no,
+    vat_no,
+    web,
+  } = body;
+
+  if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json(
-      { error: "Jméno / název je povinné." },
+      { error: "Jméno / název zákazníka je povinné." },
       { status: 400 }
     );
   }
 
-  const payload = {
-    name: body.name.trim(),
-    type: body.type === "company" ? "company" : "person",
-    contact_person: body.contact_person?.trim() || null,
-    email: body.email?.trim() || null,
-    email_secondary: body.email_secondary?.trim() || null,
-    phone: body.phone?.trim() || null,
-    phone_normalized: body.phone_normalized?.trim() || null,
-    website: body.website?.trim() || null,
-    street: body.street?.trim() || null,
-    city: body.city?.trim() || null,
-    zip: body.zip?.trim() || null,
-    country: body.country?.trim() || "Česko",
-    ico: body.ico?.trim() || null,
-    dic: body.dic?.trim() || null,
-    payment_due_days:
-      body.payment_due_days === "" || body.payment_due_days == null
-        ? null
-        : Number(body.payment_due_days),
-    is_customer: body.is_customer ?? true,
-    is_supplier: body.is_supplier ?? false,
-    status: body.status?.trim() || "active",
-    note: body.note?.trim() || null,
-    next_action_at:
-      body.next_action_at === "" || body.next_action_at == null
-        ? null
-        : body.next_action_at,
+  const insertPayload = {
+    name: name.trim(),
+    company: company ? String(company).trim() : null,
+    email: email ? String(email).trim() : null,
+    phone: phone ? String(phone).trim() : null,
+    street: street ? String(street).trim() : null,
+    city: city ? String(city).trim() : null,
+    zip: zip ? String(zip).trim() : null,
+    country: country ? String(country).trim() : null,
+    status: status ? String(status).trim() : "nový",
+    note: note ? String(note).trim() : null,
+    next_action_at: next_action_at || null,
+    registration_no: registration_no ? String(registration_no).trim() : null,
+    vat_no: vat_no ? String(vat_no).trim() : null,
+    web: web ? String(web).trim() : null,
   };
 
   const { data, error } = await supabase
     .from("customers")
-    .insert(payload)
-    .select()
+    .insert(insertPayload)
+    .select(
+      `
+      id,
+      name,
+      company,
+      email,
+      phone,
+      street,
+      city,
+      zip,
+      country,
+      status,
+      note,
+      next_action_at,
+      registration_no,
+      vat_no,
+      web,
+      created_at,
+      updated_at
+    `
+    )
     .single();
 
   if (error) {
-    console.error(error);
+    console.error("POST /api/customers error:", error, "payload:", insertPayload);
     return NextResponse.json(
       { error: "Nepodařilo se vytvořit zákazníka." },
       { status: 500 }
