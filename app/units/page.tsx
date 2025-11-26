@@ -238,7 +238,7 @@ export default function UnitsPage() {
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">Model</th>
               <th className="py-2 px-3 font-medium text-gray-700">
-                Umístění (město zákazníka / sklad)
+                Umístění
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">
                 Datum prodeje
