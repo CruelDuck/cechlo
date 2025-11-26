@@ -22,6 +22,7 @@ type Customer = {
   registration_no: string | null; // IČO
   vat_no: string | null; // DIČ
   web: string | null; // web
+   type: "person" | "company";
 };
 
 type CustomerUnit = {
