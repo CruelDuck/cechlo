@@ -34,7 +34,12 @@ export async function GET(req: NextRequest) {
         currency,
         note,
         model,
-        prep_status
+        prep_status,
+        customer:customers (
+          id,
+          name,
+          city
+        )
       `
       );
 
@@ -48,6 +53,8 @@ export async function GET(req: NextRequest) {
           note.ilike.${like}
         `
       );
+      // Kdybys chtěl hledat i podle města zákazníka, museli bychom to řešit trochu jinak,
+      // to teď nechávám stranou, ať nerozbíjíme dotaz.
     }
 
     if (status && status !== "all") {
@@ -66,7 +73,33 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(data ?? []);
+    // Namapujeme nested customer → plochá pole customer_city / customer_name
+    const mapped =
+      (data ?? []).map((row: any) => ({
+        id: row.id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        product_model_id: row.product_model_id,
+        serial_number: row.serial_number,
+        status: row.status,
+        warehouse_location: row.warehouse_location,
+        customer_id: row.customer_id,
+        purchase_price: row.purchase_price,
+        purchase_currency: row.purchase_currency,
+        purchase_date: row.purchase_date,
+        sale_id: row.sale_id,
+        sale_date: row.sale_date,
+        sale_price: row.sale_price,
+        currency: row.currency,
+        note: row.note,
+        model: row.model,
+        prep_status: row.prep_status,
+        // nové:
+        customer_city: row.customer?.city ?? null,
+        customer_name: row.customer?.name ?? null,
+      })) ?? [];
+
+    return NextResponse.json(mapped);
   } catch (e) {
     console.error("GET /api/units unexpected error:", e);
     return NextResponse.json(
