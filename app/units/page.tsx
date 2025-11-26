@@ -23,31 +23,47 @@ type UnitRow = {
   model: string | null;
   prep_status: string | null;
 
-  // NOVĚ – info o zákazníkovi z /api/units
   customer_city: string | null;
   customer_name: string | null;
 };
 
+// sjednotíme kódy tak, aby seděly na to, co ukládá /api/units/[id]:
+// not_assembled, assembled, ready_to_ship, shipped
 function normalizePrepStatus(prep: string | null): string {
   if (!prep) return "";
 
   const p = prep.toLowerCase();
 
-  if (p === "neslozeno" || p === "nesloženo") return "neslozeno";
-  if (p === "slozeno" || p === "složeno") return "slozeno";
-
-  if (
-    p === "pripraveno" ||
-    p === "pripravene" ||
-    p === "pripraveno k odeslani" ||
-    p === "připraveno k odeslani" ||
-    p === "připraveno k odeslání"
-  ) {
-    return "pripraveno";
+  // Nesloženo
+  if (p === "neslozeno" || p === "nesloženo" || p === "not_assembled") {
+    return "not_assembled";
   }
 
-  if (p === "odeslano" || p === "odesláno") return "odeslano";
+  // Složeno
+  if (p === "slozeno" || p === "složeno" || p === "assembled") {
+    return "assembled";
+  }
 
+  // Připraveno k odeslání
+  if (
+    p === "pripraveno" ||
+    p === "připraveno" ||
+    p === "pripravene" ||
+    p === "připravené" ||
+    p === "pripraveno k odeslani" ||
+    p === "připraveno k odeslani" ||
+    p === "připraveno k odeslání" ||
+    p === "ready_to_ship"
+  ) {
+    return "ready_to_ship";
+  }
+
+  // Odesláno
+  if (p === "odeslano" || p === "odesláno" || p === "shipped") {
+    return "shipped";
+  }
+
+  // fallback – vrátíme původní, ale label z toho nic moc neudělá
   return p;
 }
 
@@ -55,13 +71,13 @@ function getPrepStatusLabel(prep: string | null): string {
   const p = normalizePrepStatus(prep);
 
   switch (p) {
-    case "neslozeno":
+    case "not_assembled":
       return "Nesloženo";
-    case "slozeno":
+    case "assembled":
       return "Složeno";
-    case "pripraveno":
+    case "ready_to_ship":
       return "Připraveno k odeslání";
-    case "odeslano":
+    case "shipped":
       return "Odesláno";
     default:
       return "Nespecifikováno";
@@ -72,13 +88,13 @@ function getPrepStatusClass(prep: string | null): string {
   const p = normalizePrepStatus(prep);
 
   switch (p) {
-    case "neslozeno":
+    case "not_assembled":
       return "bg-red-100 text-red-800 border-red-200";
-    case "slozeno":
+    case "assembled":
       return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "pripraveno":
+    case "ready_to_ship":
       return "bg-blue-100 text-blue-800 border-blue-200";
-    case "odeslano":
+    case "shipped":
       return "bg-green-100 text-green-800 border-green-200";
     default:
       return "bg-gray-100 text-gray-700 border-gray-200";
@@ -163,7 +179,7 @@ export default function UnitsPage() {
   }
 
   function handleCreateUnit() {
-    router.push("/units/new"); // předpokládaná stránka pro nový vozík
+    router.push("/units/new");
   }
 
   return (
@@ -177,7 +193,6 @@ export default function UnitsPage() {
           </p>
         </div>
 
-        {/* NOVÉ tlačítko „Přidat nový vozík“ */}
         <button
           type="button"
           onClick={handleCreateUnit}
@@ -238,7 +253,7 @@ export default function UnitsPage() {
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">Model</th>
               <th className="py-2 px-3 font-medium text-gray-700">
-                Umístění
+                Umístění (město zákazníka / sklad)
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">
                 Datum prodeje
