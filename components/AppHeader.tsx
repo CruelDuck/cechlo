@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const navItems = [
-  { href: "/units", label: "Vozíky", icon: "🛻" },
-  { href: "/customers", label: "Kontakty", icon: "👥" },
-  { href: "/parts", label: "Sklad", icon: "📦" },
+  { href: "/units", label: "Vozíky" },
+  { href: "/customers", label: "Kontakty" },
+  { href: "/parts", label: "Sklad" },
 ];
 
 export default function AppHeader() {
@@ -38,15 +38,14 @@ export default function AppHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1
+                className={`px-3 py-2 rounded-md text-sm font-medium
                   ${
                     isActive(item.href)
                       ? "bg-gray-200 text-black"
                       : "text-gray-200 hover:bg-gray-800"
                   }`}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </Link>
             ))}
           </nav>
@@ -86,7 +85,7 @@ export default function AppHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`w-full px-3 py-2 rounded-md text-sm flex items-center gap-2
+                className={`w-full px-3 py-2 rounded-md text-sm
                   ${
                     isActive(item.href)
                       ? "bg-gray-200 text-black"
@@ -94,8 +93,7 @@ export default function AppHeader() {
                   }`}
                 onClick={() => setOpen(false)}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </Link>
             ))}
 
@@ -114,3 +112,4 @@ export default function AppHeader() {
     </header>
   );
 }
+
