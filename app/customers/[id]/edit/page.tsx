@@ -17,6 +17,9 @@ type Customer = {
   status: string;
   note: string | null;
   next_action_at: string | null;
+  registration_no: string | null;
+  vat_no: string | null;
+  web: string | null;
 };
 
 export default function EditCustomerPage({
@@ -43,6 +46,10 @@ export default function EditCustomerPage({
   const [note, setNote] = useState("");
   const [nextActionAt, setNextActionAt] = useState("");
 
+  const [registrationNo, setRegistrationNo] = useState(""); // IČO
+  const [vatNo, setVatNo] = useState("");                   // DIČ
+  const [web, setWeb] = useState("");                       // web
+
   useEffect(() => {
     async function loadCustomer() {
       try {
@@ -68,10 +75,12 @@ export default function EditCustomerPage({
         setCountry(data.country ?? "");
         setStatus(data.status ?? "");
         setNote(data.note ?? "");
-        // vezmeme jen YYYY-MM-DD, pokud je tam timestamp
         setNextActionAt(
           data.next_action_at ? data.next_action_at.slice(0, 10) : ""
         );
+        setRegistrationNo(data.registration_no ?? "");
+        setVatNo(data.vat_no ?? "");
+        setWeb(data.web ?? "");
       } catch (e) {
         console.error(e);
         setError("Neočekávaná chyba při načítání zákazníka.");
@@ -94,22 +103,29 @@ export default function EditCustomerPage({
 
     setSaving(true);
 
-    const formData = new FormData();
-    formData.append("name", name.trim());
-    formData.append("company", company.trim());
-    formData.append("email", email.trim());
-    formData.append("phone", phone.trim());
-    formData.append("street", street.trim());
-    formData.append("city", city.trim());
-    formData.append("zip", zip.trim());
-    formData.append("country", country.trim());
-    formData.append("status", status.trim());
-    formData.append("note", note.trim());
-    formData.append("next_action_at", nextActionAt || "");
+    const body = {
+      name: name.trim(),
+      company: company.trim() || null,
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      street: street.trim() || null,
+      city: city.trim() || null,
+      zip: zip.trim() || null,
+      country: country.trim() || null,
+      status: status.trim() || "nový",
+      note: note.trim() || null,
+      next_action_at: nextActionAt || null,
+      registration_no: registrationNo.trim() || null,
+      vat_no: vatNo.trim() || null,
+      web: web.trim() || null,
+    };
 
     const res = await fetch(`/api/customers/${params.id}`, {
       method: "PATCH",
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
 
     setSaving(false);
@@ -120,7 +136,6 @@ export default function EditCustomerPage({
       return;
     }
 
-    // po úspěchu zpět na detail zákazníka
     router.push(`/customers/${params.id}`);
     router.refresh();
   }
@@ -251,6 +266,47 @@ export default function EditCustomerPage({
               className="w-full border rounded-md px-3 py-2 text-sm"
               placeholder="např. CZ / Česká republika"
             />
+          </div>
+        </div>
+
+        {/* IČO / DIČ / web */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-800">
+            Firemní údaje
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                IČO
+              </label>
+              <input
+                value={registrationNo}
+                onChange={(e) => setRegistrationNo(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                DIČ
+              </label>
+              <input
+                value={vatNo}
+                onChange={(e) => setVatNo(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Web
+              </label>
+              <input
+                value={web}
+                onChange={(e) => setWeb(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="např. https://firma.cz"
+              />
+            </div>
           </div>
         </div>
 
