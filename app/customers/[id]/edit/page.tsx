@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+type CustomerType = "person" | "company";
+
 type Customer = {
   id: string;
   name: string;
@@ -20,6 +22,7 @@ type Customer = {
   registration_no: string | null;
   vat_no: string | null;
   web: string | null;
+  type: CustomerType; // 👈 přidané
 };
 
 export default function EditCustomerPage({
@@ -47,8 +50,10 @@ export default function EditCustomerPage({
   const [nextActionAt, setNextActionAt] = useState("");
 
   const [registrationNo, setRegistrationNo] = useState(""); // IČO
-  const [vatNo, setVatNo] = useState("");                   // DIČ
-  const [web, setWeb] = useState("");                       // web
+  const [vatNo, setVatNo] = useState(""); // DIČ
+  const [web, setWeb] = useState(""); // web
+
+  const [customerType, setCustomerType] = useState<CustomerType>("person"); // 👈 osoba/firma
 
   useEffect(() => {
     async function loadCustomer() {
@@ -81,6 +86,7 @@ export default function EditCustomerPage({
         setRegistrationNo(data.registration_no ?? "");
         setVatNo(data.vat_no ?? "");
         setWeb(data.web ?? "");
+        setCustomerType(data.type ?? "person"); // 👈 načtení typu
       } catch (e) {
         console.error(e);
         setError("Neočekávaná chyba při načítání zákazníka.");
@@ -118,6 +124,7 @@ export default function EditCustomerPage({
       registration_no: registrationNo.trim() || null,
       vat_no: vatNo.trim() || null,
       web: web.trim() || null,
+      type: customerType, // 👈 pošleme na API
     };
 
     const res = await fetch(`/api/customers/${params.id}`, {
@@ -167,6 +174,35 @@ export default function EditCustomerPage({
             Základní informace
           </h3>
 
+          {/* typ kontaktu osoba/firma */}
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Typ kontaktu
+            </label>
+            <div className="flex items-center gap-4 text-xs">
+              <label className="inline-flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="customerType"
+                  value="person"
+                  checked={customerType === "person"}
+                  onChange={() => setCustomerType("person")}
+                />
+                <span>Osoba</span>
+              </label>
+              <label className="inline-flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="customerType"
+                  value="company"
+                  checked={customerType === "company"}
+                  onChange={() => setCustomerType("company")}
+                />
+                <span>Firma</span>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-medium mb-1">
               Jméno / název *
@@ -193,9 +229,7 @@ export default function EditCustomerPage({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1">
-                Email
-              </label>
+              <label className="block text-xs font-medium mb-1">Email</label>
               <input
                 type="email"
                 value={email}
@@ -205,9 +239,7 @@ export default function EditCustomerPage({
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1">
-                Telefon
-              </label>
+              <label className="block text-xs font-medium mb-1">Telefon</label>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -245,9 +277,7 @@ export default function EditCustomerPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">
-                PSČ
-              </label>
+              <label className="block text-xs font-medium mb-1">PSČ</label>
               <input
                 value={zip}
                 onChange={(e) => setZip(e.target.value)}
@@ -257,9 +287,7 @@ export default function EditCustomerPage({
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1">
-              Země
-            </label>
+            <label className="block text-xs font-medium mb-1">Země</label>
             <input
               value={country}
               onChange={(e) => setCountry(e.target.value)}
@@ -277,9 +305,7 @@ export default function EditCustomerPage({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1">
-                IČO
-              </label>
+              <label className="block text-xs font-medium mb-1">IČO</label>
               <input
                 value={registrationNo}
                 onChange={(e) => setRegistrationNo(e.target.value)}
@@ -287,9 +313,7 @@ export default function EditCustomerPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">
-                DIČ
-              </label>
+              <label className="block text-xs font-medium mb-1">DIČ</label>
               <input
                 value={vatNo}
                 onChange={(e) => setVatNo(e.target.value)}
@@ -297,9 +321,7 @@ export default function EditCustomerPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">
-                Web
-              </label>
+              <label className="block text-xs font-medium mb-1">Web</label>
               <input
                 value={web}
                 onChange={(e) => setWeb(e.target.value)}
