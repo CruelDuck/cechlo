@@ -13,7 +13,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Supabase klient bez typování Database – to je plně v pohodě
   const supabase = createServerComponentClient({ cookies });
 
   const {
@@ -26,47 +25,45 @@ export default async function RootLayout({
         {/* Horní lišta jen pokud je uživatel přihlášen */}
         {session && (
           <header className="bg-black text-white shadow-md">
-            <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-              {/* Vlevo logo + navigace */}
-              <div className="flex items-center gap-6">
-                <h1 className="text-lg font-semibold tracking-tight">
-                  Čechlo
-                </h1>
+            <div className="max-w-5xl mx-auto px-4 py-2 flex flex-col gap-2">
+              {/* První řádek: logo + odhlášení */}
+              <div className="flex items-center justify-between">
+                {/* Logo je klikací – vede na dashboard (/) */}
+                <Link href="/" className="flex items-center">
+                  <span className="text-lg font-semibold tracking-tight">
+                    Čechlo
+                  </span>
+                </Link>
 
-                <nav className="hidden sm:flex items-center gap-1">
-                  <Link
-                    href="/units"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:bg-gray-800"
-                  >
-                    Vozíky
-                  </Link>
-                  <Link
-                    href="/customers"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:bg-gray-800"
-                  >
-                    Kontakty
-                  </Link>
-                  <Link
-                    href="/parts"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:bg-gray-800"
-                  >
-                    Sklad
-                  </Link>
-                  <Link
-                    href="/newsletter"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:bg-gray-800"
-                  >
-                    Newsletter
-                  </Link>
-                </nav>
+                <form action="/auth/signout" method="post">
+                  <button className="text-gray-300 hover:text-white text-sm">
+                    Odhlásit se
+                  </button>
+                </form>
               </div>
 
-              {/* Vpravo odhlášení */}
-              <form action="/auth/signout" method="post">
-                <button className="text-gray-300 hover:text-white text-sm">
-                  Odhlásit se
-                </button>
-              </form>
+              {/* Druhý řádek: navigace – viditelná i na mobilu */}
+              <nav className="flex flex-wrap items-center gap-1">
+                <Link
+                  href="/units"
+                  className="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium text-gray-200 hover:bg-gray-800"
+                >
+                  Vozíky
+                </Link>
+                <Link
+                  href="/customers"
+                  className="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium text-gray-200 hover:bg-gray-800"
+                >
+                  Kontakty
+                </Link>
+                <Link
+                  href="/parts"
+                  className="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium text-gray-200 hover:bg-gray-800"
+                >
+                  Sklad
+                </Link>
+                {/* Newsletter odstraněn */}
+              </nav>
             </div>
           </header>
         )}
