@@ -30,7 +30,7 @@ export async function PATCH(
       vat_rate?: number | string | null;
     };
 
-    const patchData: any = {};
+    const patchData: Record<string, any> = {};
 
     if (purchased_at !== undefined) {
       patchData.purchased_at =
@@ -100,6 +100,7 @@ export async function PATCH(
         currency,
         vat_rate,
         note,
+        invoice_url,
         part:parts (
           id,
           part_number,
