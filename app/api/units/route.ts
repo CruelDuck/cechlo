@@ -73,28 +73,35 @@ export async function GET(req: NextRequest) {
     }
 
     const mapped =
-      (data ?? []).map((row: any) => ({
-        id: row.id,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        product_model_id: row.product_model_id,
-        serial_number: row.serial_number,
-        status: row.status,
-        warehouse_location: row.warehouse_location,
-        customer_id: row.customer_id,
-        purchase_price: row.purchase_price,
-        purchase_currency: row.purchase_currency,
-        purchase_date: row.purchase_date,
-        sale_id: row.sale_id,
-        sale_date: row.sale_date,
-        sale_price: row.sale_price,
-        currency: row.currency,
-        note: row.note,
-        model: row.model,
-        prep_status: row.prep_status,
-        customer_city: row.customer?.city ?? null,
-        customer_name: row.customer?.name ?? null,
-      })) ?? [];
+      (data ?? []).map((row: any) => {
+        const rawCustomer = row.customer;
+        const customer = Array.isArray(rawCustomer)
+          ? rawCustomer[0] ?? null
+          : rawCustomer ?? null;
+
+        return {
+          id: row.id,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          product_model_id: row.product_model_id,
+          serial_number: row.serial_number,
+          status: row.status,
+          warehouse_location: row.warehouse_location,
+          customer_id: row.customer_id,
+          purchase_price: row.purchase_price,
+          purchase_currency: row.purchase_currency,
+          purchase_date: row.purchase_date,
+          sale_id: row.sale_id,
+          sale_date: row.sale_date,
+          sale_price: row.sale_price,
+          currency: row.currency,
+          note: row.note,
+          model: row.model,
+          prep_status: row.prep_status,
+          customer_city: customer?.city ?? null,
+          customer_name: customer?.name ?? null,
+        };
+      }) ?? [];
 
     return NextResponse.json(mapped);
   } catch (e) {
@@ -137,7 +144,6 @@ export async function POST(req: NextRequest) {
       serial_number,
       model,
       note,
-      // výchozí hodnoty
       status: "in_stock",
       prep_status: "not_assembled",
       currency: "CZK",
@@ -179,7 +185,6 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("POST /api/units error:", error);
 
-      // typicky unique violation na serial_number
       if ((error as any).code === "23505") {
         return NextResponse.json(
           { error: "Vozík se stejným sériovým číslem už existuje." },
@@ -192,6 +197,11 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    const rawCustomer = (data as any).customer;
+    const customer = Array.isArray(rawCustomer)
+      ? rawCustomer[0] ?? null
+      : rawCustomer ?? null;
 
     const mapped = {
       id: data.id,
@@ -212,8 +222,8 @@ export async function POST(req: NextRequest) {
       note: data.note,
       model: data.model,
       prep_status: data.prep_status,
-      customer_city: data.customer?.city ?? null,
-      customer_name: data.customer?.name ?? null,
+      customer_city: customer?.city ?? null,
+      customer_name: customer?.name ?? null,
     };
 
     return NextResponse.json(mapped, { status: 201 });
