@@ -355,6 +355,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                   <option value="ready_to_ship">
                     Připraveno k odeslání
                   </option>
+                   <option value="shipped">Odesláno</option>
                 </select>
               </div>
 
