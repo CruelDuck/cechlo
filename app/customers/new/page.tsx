@@ -1,71 +1,64 @@
-// app/customers/new/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-type CustomerType = "person" | "company";
+import Link from "next/link";
 
 export default function NewCustomerPage() {
   const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const [type, setType] = useState<CustomerType>("person");
   const [name, setName] = useState("");
-  const [contactPerson, setContactPerson] = useState("");
-
+  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
-  const [emailSecondary, setEmailSecondary] = useState("");
   const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
-
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
   const [zip, setZip] = useState("");
-  const [country, setCountry] = useState("Česko");
-
-  const [ico, setIco] = useState("");
-  const [dic, setDic] = useState("");
-  const [paymentDueDays, setPaymentDueDays] = useState("");
-
-  const [isCustomer, setIsCustomer] = useState(true);
-  const [isSupplier, setIsSupplier] = useState(false);
-
-  const [status, setStatus] = useState("active");
+  const [country, setCountry] = useState("CZ");
+  const [status, setStatus] = useState("nový");
   const [note, setNote] = useState("");
   const [nextActionAt, setNextActionAt] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  const [registrationNo, setRegistrationNo] = useState(""); // IČO
+  const [vatNo, setVatNo] = useState("");                   // DIČ
+  const [web, setWeb] = useState("");                       // Web
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    if (!name.trim()) {
+      setError("Jméno / název zákazníka je povinné.");
+      return;
+    }
+
     setSaving(true);
 
     const body = {
-      type,
-      name,
-      contact_person: contactPerson,
-      email,
-      email_secondary: emailSecondary,
-      phone,
-      website,
-      street,
-      city,
-      zip,
-      country,
-      ico,
-      dic,
-      payment_due_days: paymentDueDays,
-      is_customer: isCustomer,
-      is_supplier: isSupplier,
-      status,
-      note,
-      next_action_at: nextActionAt,
+      name: name.trim(),
+      company: company.trim() || null,
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      street: street.trim() || null,
+      city: city.trim() || null,
+      zip: zip.trim() || null,
+      country: country.trim() || null,
+      status: status.trim() || "nový",
+      note: note.trim() || null,
+      next_action_at: nextActionAt || null,
+      registration_no: registrationNo.trim() || null,
+      vat_no: vatNo.trim() || null,
+      web: web.trim() || null,
     };
 
     const res = await fetch("/api/customers", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     });
 
@@ -73,7 +66,7 @@ export default function NewCustomerPage() {
 
     if (!res.ok) {
       const payload = await res.json().catch(() => null);
-      setError(payload?.error ?? "Nepodařilo se uložit kontakt.");
+      setError(payload?.error ?? "Nepodařilo se vytvořit zákazníka.");
       return;
     }
 
@@ -83,123 +76,94 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <main className="max-w-2xl space-y-6">
-      <h2 className="text-lg font-semibold">Nový kontakt</h2>
+    <main className="space-y-6 max-w-2xl">
+      <header className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Nový kontakt / zákazník</h2>
+        <Link
+          href="/customers"
+          className="text-xs text-gray-600 hover:underline"
+        >
+          Zpět na seznam
+        </Link>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* typ + jméno */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+        {/* Základní info */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-800">
+            Základní informace
+          </h3>
+
           <div>
             <label className="block text-xs font-medium mb-1">
-              Typ
-            </label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as CustomerType)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            >
-              <option value="person">Osoba</option>
-              <option value="company">Firma</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium mb-1">
-              Jméno / název
+              Jméno / název *
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
               required
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder={
-                type === "company" ? "Biobobo s.r.o." : "Jan Novák"
-              }
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">
+              Firma (pokud je jiná než jméno)
+            </label>
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. Biobobo s.r.o."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Telefon
+              </label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
           </div>
         </div>
 
-        {/* kontakt osoba */}
-        {type === "company" && (
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Kontaktní osoba (volitelné)
-            </label>
-            <input
-              value={contactPerson}
-              onChange={(e) => setContactPerson(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder="např. Martin Podlesný"
-            />
-          </div>
-        )}
-
-        {/* email / telefon / web */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Další email (volitelné)
-            </label>
-            <input
-              type="email"
-              value={emailSecondary}
-              onChange={(e) => setEmailSecondary(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Telefon
-            </label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium mb-1">
-            Web (volitelné)
-          </label>
-          <input
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm"
-            placeholder="https://…"
-          />
-        </div>
-
-        {/* adresa */}
+        {/* Adresa */}
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-700">
-            Adresa
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-800">Adresa</h3>
+
           <div>
             <label className="block text-xs font-medium mb-1">
-              Ulice a č.p.
+              Ulice a číslo
             </label>
             <input
               value={street}
               onChange={(e) => setStreet(e.target.value)}
               className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. Českolipská 393/6"
             />
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium mb-1">
-                Město
+                Město / obec
               </label>
               <input
                 value={city}
@@ -218,6 +182,7 @@ export default function NewCustomerPage() {
               />
             </div>
           </div>
+
           <div>
             <label className="block text-xs font-medium mb-1">
               Země
@@ -226,23 +191,25 @@ export default function NewCustomerPage() {
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="w-full border rounded-md px-3 py-2 text-sm"
+              placeholder="např. CZ / Česká republika"
             />
           </div>
         </div>
 
-        {/* firemní údaje */}
+        {/* IČO / DIČ / web */}
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-700">
-            Firemní údaje (pokud dává smysl)
+          <h3 className="text-sm font-semibold text-gray-800">
+            Firemní údaje
           </h3>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1">
                 IČO
               </label>
               <input
-                value={ico}
-                onChange={(e) => setIco(e.target.value)}
+                value={registrationNo}
+                onChange={(e) => setRegistrationNo(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               />
             </div>
@@ -251,62 +218,47 @@ export default function NewCustomerPage() {
                 DIČ
               </label>
               <input
-                value={dic}
-                onChange={(e) => setDic(e.target.value)}
+                value={vatNo}
+                onChange={(e) => setVatNo(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">
-                Splatnost (dny)
+                Web
               </label>
               <input
-                type="number"
-                value={paymentDueDays}
-                onChange={(e) => setPaymentDueDays(e.target.value)}
+                value={web}
+                onChange={(e) => setWeb(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="např. https://firma.cz"
               />
             </div>
           </div>
         </div>
 
-        {/* role & stav */}
+        {/* Stav & další akce */}
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-700">
-            Role & stav
+          <h3 className="text-sm font-semibold text-gray-800">
+            Stav a další akce
           </h3>
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={isCustomer}
-                onChange={(e) => setIsCustomer(e.target.checked)}
-              />
-              <span>Je zákazník</span>
-            </label>
-            <label className="inline-flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={isSupplier}
-                onChange={(e) => setIsSupplier(e.target.checked)}
-              />
-              <span>Je dodavatel</span>
-            </label>
-          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1">
-                Stav (např. lead, aktivní…)
+                Stav (interní)
               </label>
               <input
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="např. nový lead, zákazník, neaktivní…"
               />
             </div>
+
             <div>
               <label className="block text-xs font-medium mb-1">
-                Další akce kdy (volitelné)
+                Další akce (datum)
               </label>
               <input
                 type="date"
@@ -318,7 +270,7 @@ export default function NewCustomerPage() {
           </div>
         </div>
 
-        {/* poznámka */}
+        {/* Poznámka */}
         <div>
           <label className="block text-xs font-medium mb-1">
             Interní poznámka
@@ -337,13 +289,22 @@ export default function NewCustomerPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
-        >
-          {saving ? "Ukládám…" : "Uložit kontakt"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
+          >
+            {saving ? "Ukládám…" : "Vytvořit kontakt"}
+          </button>
+
+          <Link
+            href="/customers"
+            className="text-xs text-gray-600 hover:underline"
+          >
+            Zrušit
+          </Link>
+        </div>
       </form>
     </main>
   );
