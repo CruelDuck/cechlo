@@ -171,9 +171,6 @@ export default function CustomersPage() {
                     Jméno / firma
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
-                    Kontakt
-                  </th>
-                  <th className="py-2 px-3 font-medium text-gray-700">
                     Telefon
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
