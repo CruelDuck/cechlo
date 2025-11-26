@@ -28,10 +28,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error(
-      "Unexpected DELETE /api/service-events/[id] error:",
-      e
-    );
+    console.error("Unexpected DELETE /api/service-events/[id] error:", e);
     return NextResponse.json(
       { error: "Interní chyba serveru." },
       { status: 500 }
