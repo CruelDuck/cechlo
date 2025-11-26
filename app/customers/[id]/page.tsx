@@ -19,6 +19,9 @@ type Customer = {
   status: string;
   note: string | null;
   next_action_at: string | null;
+  registration_no: string | null; // IČO
+  vat_no: string | null;           // DIČ
+  web: string | null;              // web
 };
 
 type CustomerUnit = {
@@ -652,6 +655,31 @@ export default function CustomerDetailPage({
                 href={`mailto:${customer.email}`}
                 className="text-blue-600 hover:underline"
               >
+                  {(customer.registration_no || customer.vat_no || customer.web) && (
+      <div className="mt-2 space-y-1 text-xs text-gray-600">
+        {customer.registration_no && (
+          <p>IČO: {customer.registration_no}</p>
+        )}
+        {customer.vat_no && <p>DIČ: {customer.vat_no}</p>}
+        {customer.web && (
+          <p>
+            Web:{" "}
+            <a
+              href={
+                customer.web.startsWith("http")
+                  ? customer.web
+                  : `https://${customer.web}`
+              }
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              {customer.web}
+            </a>
+          </p>
+        )}
+      </div>
+    )}
                 {customer.email}
               </a>
             </p>
