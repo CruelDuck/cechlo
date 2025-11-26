@@ -22,6 +22,10 @@ type UnitRow = {
   note: string | null;
   model: string | null;
   prep_status: string | null;
+
+  // NOVĚ – info o zákazníkovi z /api/units
+  customer_city: string | null;
+  customer_name: string | null;
 };
 
 function normalizePrepStatus(prep: string | null): string {
@@ -131,7 +135,7 @@ export default function UnitsPage() {
       }
     }
 
-    load();
+    void load();
   }, [searchParams]);
 
   function applyFilters(nextQ: string, nextStatus: string) {
@@ -158,6 +162,10 @@ export default function UnitsPage() {
     router.push(`/units/${id}`);
   }
 
+  function handleCreateUnit() {
+    router.push("/units/new"); // předpokládaná stránka pro nový vozík
+  }
+
   return (
     <main className="space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -168,6 +176,15 @@ export default function UnitsPage() {
             Připraveno k odeslání, Odesláno).
           </p>
         </div>
+
+        {/* NOVÉ tlačítko „Přidat nový vozík“ */}
+        <button
+          type="button"
+          onClick={handleCreateUnit}
+          className="inline-flex items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-900"
+        >
+          + Přidat nový vozík
+        </button>
       </header>
 
       {/* Filtry */}
@@ -221,7 +238,7 @@ export default function UnitsPage() {
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">Model</th>
               <th className="py-2 px-3 font-medium text-gray-700">
-                Umístění
+                Umístění (město zákazníka / sklad)
               </th>
               <th className="py-2 px-3 font-medium text-gray-700">
                 Datum prodeje
@@ -276,7 +293,9 @@ export default function UnitsPage() {
                     {u.model ?? "–"}
                   </td>
                   <td className="py-2 px-3 whitespace-nowrap">
-                    {u.warehouse_location ?? "–"}
+                    {u.customer_city
+                      ? u.customer_city
+                      : u.warehouse_location ?? "–"}
                   </td>
                   <td className="py-2 px-3 whitespace-nowrap">
                     {u.sale_date ?? "–"}
