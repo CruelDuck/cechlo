@@ -1,4 +1,3 @@
-// app/customers/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -67,12 +66,10 @@ export default function CustomersPage() {
   }
 
   useEffect(() => {
-    // první načtení
     void loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // při změně role rovnou reload
   useEffect(() => {
     void loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -203,22 +200,10 @@ export default function CustomersPage() {
                         <span className="font-medium">
                           {c.name}
                         </span>
-                        {c.type === "company" && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-                            Firma
-                            {c.contact_person && (
-                              <>
-                                · kontakt: {c.contact_person}
-                              </>
-                            )}
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                          {c.type === "company" ? "Firma" : "Osoba"}
+                        </span>
                       </div>
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {c.type === "person" && c.contact_person
-                        ? c.contact_person
-                        : "–"}
                     </td>
                     <td className="py-2 px-3 whitespace-nowrap">
                       {c.phone ?? "–"}
