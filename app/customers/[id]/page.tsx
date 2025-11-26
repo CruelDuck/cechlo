@@ -20,8 +20,8 @@ type Customer = {
   note: string | null;
   next_action_at: string | null;
   registration_no: string | null; // IČO
-  vat_no: string | null;           // DIČ
-  web: string | null;              // web
+  vat_no: string | null; // DIČ
+  web: string | null; // web
 };
 
 type CustomerUnit = {
@@ -45,6 +45,7 @@ type ServiceEvent = {
   currency: string;
   note: string | null;
   vat_rate: number | null;
+  invoice_url: string | null; // ← faktura
   unit?: {
     id: string;
     serial_number: string;
@@ -70,6 +71,7 @@ type PartPurchase = {
   note: string | null;
   service_event_id?: string | null;
   vat_rate?: number | null;
+  invoice_url?: string | null; // ← faktura
   part?: {
     id: string;
     part_number: string;
@@ -129,6 +131,12 @@ export default function CustomerDetailPage({
     string | null
   >(null);
 
+  // faktury
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [uploadingInvoiceId, setUploadingInvoiceId] = useState<string | null>(
+    null
+  );
+
   // nový servisní zásah
   const [newUnitId, setNewUnitId] = useState<string>("");
   const [newPerformedAt, setNewPerformedAt] = useState<string>(
@@ -142,7 +150,7 @@ export default function CustomerDetailPage({
   const [newTotalCost, setNewTotalCost] = useState<string>("");
   const [newVatRate, setNewVatRate] = useState<string>("21");
   const [newCurrency, setNewCurrency] = useState<string>("CZK");
-  const [newNote, setNewNote] = useState<string>("");;
+  const [newNote, setNewNote] = useState<string>("");
   const [savingService, setSavingService] = useState(false);
 
   // nový nákup ND
@@ -224,9 +232,7 @@ export default function CustomerDetailPage({
         setServiceLoading(true);
         setServiceError(null);
 
-        const res = await fetch(
-          `/api/customers/${params.id}/service-events`
-        );
+        const res = await fetch(`/api/customers/${params.id}/service-events`);
         if (!res.ok) {
           const payload = await res.json().catch(() => null);
           setServiceError(
@@ -240,9 +246,7 @@ export default function CustomerDetailPage({
         setServiceEvents(data);
       } catch (e) {
         console.error(e);
-        setServiceError(
-          "Neočekávaná chyba při načítání servisní historie."
-        );
+        setServiceError("Neočekávaná chyba při načítání servisní historie.");
         setServiceEvents([]);
       } finally {
         setServiceLoading(false);
@@ -290,14 +294,11 @@ export default function CustomerDetailPage({
         setPartsPurchasesLoading(true);
         setPartsPurchasesError(null);
 
-        const res = await fetch(
-          `/api/customers/${params.id}/part-purchases`
-        );
+        const res = await fetch(`/api/customers/${params.id}/part-purchases`);
         if (!res.ok) {
           const payload = await res.json().catch(() => null);
           setPartsPurchasesError(
-            payload?.error ??
-              "Nepodařilo se načíst nákupy náhradních dílů."
+            payload?.error ?? "Nepodařilo se načíst nákupy náhradních dílů."
           );
           setPartPurchases([]);
           return;
@@ -322,6 +323,78 @@ export default function CustomerDetailPage({
     void loadParts();
     void loadPartPurchases();
   }, [params.id]);
+
+  // --- upload faktury ---
+
+  async function uploadInvoiceForServiceEvent(serviceEventId: string, file: File) {
+    try {
+      setUploadingInvoiceId(serviceEventId);
+      setInvoiceError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "service_event");
+      formData.append("id", serviceEventId);
+
+      const res = await fetch("/api/uploads/invoice", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setInvoiceError(data?.error ?? "Nepodařilo se nahrát fakturu.");
+        return;
+      }
+
+      setServiceEvents((prev) =>
+        prev.map((s) =>
+          s.id === serviceEventId ? { ...s, invoice_url: data.invoice_url } : s
+        )
+      );
+    } catch (e) {
+      console.error(e);
+      setInvoiceError("Neočekávaná chyba při nahrávání faktury.");
+    } finally {
+      setUploadingInvoiceId(null);
+    }
+  }
+
+  async function uploadInvoiceForPartPurchase(partPurchaseId: string, file: File) {
+    try {
+      setUploadingInvoiceId(partPurchaseId);
+      setInvoiceError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "part_purchase");
+      formData.append("id", partPurchaseId);
+
+      const res = await fetch("/api/uploads/invoice", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setInvoiceError(data?.error ?? "Nepodařilo se nahrát fakturu.");
+        return;
+      }
+
+      setPartPurchases((prev) =>
+        prev.map((p) =>
+          p.id === partPurchaseId ? { ...p, invoice_url: data.invoice_url } : p
+        )
+      );
+    } catch (e) {
+      console.error(e);
+      setInvoiceError("Neočekávaná chyba při nahrávání faktury.");
+    } finally {
+      setUploadingInvoiceId(null);
+    }
+  }
 
   // --- Servisní zásahy ---
 
@@ -358,7 +431,7 @@ export default function CustomerDetailPage({
       total_cost: totalToSend,
       currency: newCurrency || "CZK",
       note: newNote || null,
-          vat_rate: newVatRate || "21",
+      vat_rate: newVatRate || "21",
     };
 
     const res = await fetch(`/api/customers/${customer.id}/service-events`, {
@@ -482,16 +555,13 @@ export default function CustomerDetailPage({
       vat_rate: newPartVatRate || "21",
     };
 
-    const res = await fetch(
-      `/api/customers/${customer.id}/part-purchases`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const res = await fetch(`/api/customers/${customer.id}/part-purchases`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
     setSavingPartPurchase(false);
 
@@ -581,10 +651,7 @@ export default function CustomerDetailPage({
   }
 
   async function handleDeletePartPurchase(id: string) {
-    if (
-      !window.confirm("Opravdu smazat tento nákup náhradního dílu?")
-    )
-      return;
+    if (!window.confirm("Opravdu smazat tento nákup náhradního dílu?")) return;
 
     const res = await fetch(`/api/part-purchases/${id}`, {
       method: "DELETE",
@@ -655,31 +722,6 @@ export default function CustomerDetailPage({
                 href={`mailto:${customer.email}`}
                 className="text-blue-600 hover:underline"
               >
-                  {(customer.registration_no || customer.vat_no || customer.web) && (
-      <div className="mt-2 space-y-1 text-xs text-gray-600">
-        {customer.registration_no && (
-          <p>IČO: {customer.registration_no}</p>
-        )}
-        {customer.vat_no && <p>DIČ: {customer.vat_no}</p>}
-        {customer.web && (
-          <p>
-            Web:{" "}
-            <a
-              href={
-                customer.web.startsWith("http")
-                  ? customer.web
-                  : `https://${customer.web}`
-              }
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 hover:underline"
-            >
-              {customer.web}
-            </a>
-          </p>
-        )}
-      </div>
-    )}
                 {customer.email}
               </a>
             </p>
@@ -694,6 +736,31 @@ export default function CustomerDetailPage({
                 {customer.phone}
               </a>
             </p>
+          )}
+          {(customer.registration_no || customer.vat_no || customer.web) && (
+            <div className="mt-2 space-y-1 text-xs text-gray-600">
+              {customer.registration_no && (
+                <p>IČO: {customer.registration_no}</p>
+              )}
+              {customer.vat_no && <p>DIČ: {customer.vat_no}</p>}
+              {customer.web && (
+                <p>
+                  Web:{" "}
+                  <a
+                    href={
+                      customer.web.startsWith("http")
+                        ? customer.web
+                        : `https://${customer.web}`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {customer.web}
+                  </a>
+                </p>
+              )}
+            </div>
           )}
           {customer.next_action_at && (
             <p className="text-xs text-gray-500 mt-1">
@@ -739,9 +806,7 @@ export default function CustomerDetailPage({
         </div>
 
         {unitsLoading && (
-          <p className="text-sm text-gray-500">
-            Načítám vozíky zákazníka…
-          </p>
+          <p className="text-sm text-gray-500">Načítám vozíky zákazníka…</p>
         )}
 
         {unitsError && (
@@ -796,9 +861,7 @@ export default function CustomerDetailPage({
                       {formatDate(u.sale_date)}
                     </td>
                     <td className="py-2 px-3 whitespace-nowrap text-right">
-                      {u.sale_price != null
-                        ? `${u.sale_price} Kč`
-                        : "–"}
+                      {u.sale_price != null ? `${u.sale_price} Kč` : "–"}
                     </td>
                   </tr>
                 ))}
@@ -852,6 +915,9 @@ export default function CustomerDetailPage({
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
                     Cena celkem
+                  </th>
+                  <th className="py-2 px-3 font-medium text-gray-700">
+                    Faktura
                   </th>
                   <th className="py-2 px-3 font-medium text-gray-700">
                     Akce
@@ -916,10 +982,9 @@ export default function CustomerDetailPage({
                                       )}
                                       <span className="text-gray-500">
                                         {" "}
-                                        – {p.quantity} ks,{" "}
-                                        {p.unit_price} {p.currency} bez
-                                        DPH / {priceWithVat} {p.currency} s
-                                        DPH ({vat}%)
+                                        – {p.quantity} ks, {p.unit_price}{" "}
+                                        {p.currency} bez DPH / {priceWithVat}{" "}
+                                        {p.currency} s DPH ({vat}%)
                                       </span>
                                     </>
                                   ) : (
@@ -934,30 +999,68 @@ export default function CustomerDetailPage({
                           </ul>
                         )}
                       </td>
-<td className="py-2 px-3 whitespace-nowrap text-right">
-  {s.total_cost != null ? (
-    <div className="text-xs">
-      {(() => {
-        const vat = s.vat_rate ?? 21;
-        const totalNet = s.total_cost!;
-        const totalGross = Math.round(totalNet * (1 + vat / 100));
+                      <td className="py-2 px-3 whitespace-nowrap text-right">
+                        {s.total_cost != null ? (
+                          <div className="text-xs">
+                            {(() => {
+                              const vat = s.vat_rate ?? 21;
+                              const totalNet = s.total_cost!;
+                              const totalGross = Math.round(
+                                totalNet * (1 + vat / 100)
+                              );
 
-        return (
-          <>
-            <div>
-              {totalNet} {s.currency} bez DPH
-            </div>
-            <div className="text-gray-500">
-              {totalGross} {s.currency} s DPH ({vat}%)
-            </div>
-          </>
-        );
-      })()}
-    </div>
-  ) : (
-    "–"
-  )}
-</td>
+                              return (
+                                <>
+                                  <div>
+                                    {totalNet} {s.currency} bez DPH
+                                  </div>
+                                  <div className="text-gray-500">
+                                    {totalGross} {s.currency} s DPH ({vat}
+                                    %)
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          "–"
+                        )}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap text-right text-xs">
+                        {s.invoice_url ? (
+                          <a
+                            href={s.invoice_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline block"
+                          >
+                            Otevřít fakturu
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 block">
+                            Žádná faktura
+                          </span>
+                        )}
+                        <label className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-700 cursor-pointer">
+                          <span className="underline">
+                            {uploadingInvoiceId === s.id
+                              ? "Nahrávám…"
+                              : "Nahrát / změnit"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="application/pdf,image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                void uploadInvoiceForServiceEvent(s.id, file);
+                                e.target.value = "";
+                              }
+                            }}
+                          />
+                        </label>
+                      </td>
                       <td className="py-2 px-3 whitespace-nowrap text-right">
                         <div className="flex flex-col gap-1 items-end">
                           <button
@@ -981,6 +1084,11 @@ export default function CustomerDetailPage({
                 })}
               </tbody>
             </table>
+            {invoiceError && (
+              <p className="text-xs text-red-600 mt-2 px-3 pb-2">
+                {invoiceError}
+              </p>
+            )}
           </div>
         )}
 
@@ -1065,7 +1173,7 @@ export default function CustomerDetailPage({
               />
             </div>
 
-   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">
                   Cena práce
@@ -1172,9 +1280,7 @@ export default function CustomerDetailPage({
         )}
 
         {partsPurchasesError && (
-          <p className="text-sm text-red-600">
-            {partsPurchasesError}
-          </p>
+          <p className="text-sm text-red-600">{partsPurchasesError}</p>
         )}
 
         {!partsPurchasesLoading &&
@@ -1212,6 +1318,9 @@ export default function CustomerDetailPage({
                     </th>
                     <th className="py-2 px-3 font-medium text-gray-700">
                       Poznámka
+                    </th>
+                    <th className="py-2 px-3 font-medium text-gray-700">
+                      Faktura
                     </th>
                     <th className="py-2 px-3 font-medium text-gray-700">
                       Akce
@@ -1345,6 +1454,44 @@ export default function CustomerDetailPage({
                             </span>
                           )}
                         </td>
+                        <td className="py-2 px-3 whitespace-nowrap text-right text-xs">
+                          {p.invoice_url ? (
+                            <a
+                              href={p.invoice_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline block"
+                            >
+                              Otevřít fakturu
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 block">
+                              Žádná faktura
+                            </span>
+                          )}
+                          <label className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-700 cursor-pointer">
+                            <span className="underline">
+                              {uploadingInvoiceId === p.id
+                                ? "Nahrávám…"
+                                : "Nahrát / změnit"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="application/pdf,image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  void uploadInvoiceForPartPurchase(
+                                    p.id,
+                                    file
+                                  );
+                                  e.target.value = "";
+                                }
+                              }}
+                            />
+                          </label>
+                        </td>
                         <td className="py-2 px-3 whitespace-nowrap text-right">
                           {isEditing ? (
                             <div className="flex flex-col gap-1 items-end">
@@ -1369,7 +1516,9 @@ export default function CustomerDetailPage({
                             <div className="flex flex-col gap-1 items-end">
                               <button
                                 type="button"
-                                onClick={() => startEditPartPurchase(p)}
+                                onClick={() =>
+                                  startEditPartPurchase(p)
+                                }
                                 className="text-xs text-blue-700 hover:underline"
                               >
                                 Upravit
@@ -1391,6 +1540,11 @@ export default function CustomerDetailPage({
                   })}
                 </tbody>
               </table>
+              {invoiceError && (
+                <p className="text-xs text-red-600 mt-2 px-3 pb-2">
+                  {invoiceError}
+                </p>
+              )}
             </div>
           )}
 
@@ -1549,7 +1703,9 @@ export default function CustomerDetailPage({
 
             <button
               type="submit"
-              disabled={savingPartPurchase || partsLoading || !!partsError}
+              disabled={
+                savingPartPurchase || partsLoading || !!partsError
+              }
               className="px-4 py-2 bg-black text-white rounded-md text-xs sm:text-sm disabled:opacity-50"
             >
               {savingPartPurchase
