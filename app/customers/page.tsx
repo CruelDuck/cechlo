@@ -10,7 +10,6 @@ type Customer = {
   id: string;
   name: string;
   type: "person" | "company";
-  contact_person: string | null;
   email: string | null;
   phone: string | null;
   city: string | null;
