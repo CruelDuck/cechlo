@@ -1,12 +1,20 @@
-"use client";
+// app/api/dashboard/units-map/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import type { LatLngExpression } from "leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+export const runtime = "nodejs";
 
-// typ odpovědi z /api/dashboard/units-map
+type UnitRow = {
+  id: string;
+  model: string | null;
+  sale_date: string | null;
+  customer: {
+    city: string | null;
+    zip: string | null;
+  } | null;
+};
+
 type UnitForMap = {
   id: string;
   model: string | null;
@@ -17,133 +25,135 @@ type UnitForMap = {
   lng: number;
 };
 
-// dynamicky vypnuté SSR pro mapu – pořád jeden soubor/komponenta
-const MapContainer = dynamic(
-  async () => (await import("react-leaflet")).MapContainer,
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  async () => (await import("react-leaflet")).TileLayer,
-  { ssr: false }
-);
-const Marker = dynamic(
-  async () => (await import("react-leaflet")).Marker,
-  { ssr: false }
-);
-const Popup = dynamic(
-  async () => (await import("react-leaflet")).Popup,
-  { ssr: false }
-);
+// jednoduchý cache uvnitř requestu
+const geocodeCache = new Map<string, { lat: number; lng: number }>();
 
-// default ikonka pro Leaflet (jinak je rozbitý obrázek)
-const defaultIcon = new L.Icon({
-  iconUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+async function geocodeZip(
+  zip: string
+): Promise<{ lat: number; lng: number } | null> {
+  const normalized = zip.replace(/\s/g, "");
+  if (geocodeCache.has(normalized)) {
+    return geocodeCache.get(normalized)!;
+  }
 
-L.Marker.prototype.options.icon = defaultIcon;
+  const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(
+    normalized
+  )}&countrycodes=cz&format=json&limit=1`;
 
-export default function DashboardMap() {
-  const [units, setUnits] = useState<UnitForMap[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "cechlo-inventory/1.0 (kontakt: jakub.c@centrum.cz)",
+      },
+    });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+    if (!res.ok) return null;
 
-        const res = await fetch("/api/dashboard/units-map");
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null);
-          setError(
-            payload?.error ?? "Nepodařilo se načíst data pro mapu."
-          );
-          setUnits([]);
-          return;
-        }
+    const json = await res.json();
+    if (!Array.isArray(json) || json.length === 0) return null;
 
-        const data = (await res.json()) as UnitForMap[];
-        setUnits(data);
-      } catch (e) {
-        console.error(e);
-        setError("Neočekávaná chyba při načítání mapy.");
-        setUnits([]);
-      } finally {
-        setLoading(false);
+    const { lat, lon } = json[0];
+    const coords = { lat: parseFloat(lat), lng: parseFloat(lon) };
+
+    geocodeCache.set(normalized, coords);
+    return coords;
+  } catch (e) {
+    console.error("Geocoding error for ZIP", zip, e);
+    return null;
+  }
+}
+
+export async function GET(_req: NextRequest) {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+
+    const { data, error } = await supabase
+      .from("units")
+      .select(
+        `
+        id,
+        model,
+        sale_date,
+        customer:customers (
+          city,
+          zip
+        )
+      `
+      )
+      .eq("status", "sold")
+      .not("customer_id", "is", null);
+
+    if (error) {
+      console.error("/api/dashboard/units-map supabase error:", error);
+      return NextResponse.json(
+        { error: "Nepodařilo se načíst data pro mapu." },
+        { status: 500 }
+      );
+    }
+
+    // Supabase může vrátit customer jako objekt NEBO pole objektů,
+    // tak si to srovnáme do našeho UnitRow.
+    const rows: UnitRow[] = (data ?? []).map((u: any) => {
+      const customerRaw = Array.isArray(u.customer)
+        ? u.customer[0]
+        : u.customer;
+
+      return {
+        id: String(u.id),
+        model: u.model ?? null,
+        sale_date: u.sale_date ?? null,
+        customer: customerRaw
+          ? {
+              city:
+                customerRaw.city !== undefined
+                  ? customerRaw.city
+                  : null,
+              zip:
+                customerRaw.zip !== undefined ? customerRaw.zip : null,
+            }
+          : null,
+      };
+    });
+
+    // unikátní PSČ z customer.zip
+    const zips = Array.from(
+      new Set(
+        rows
+          .map((u) => u.customer?.zip?.replace(/\s/g, ""))
+          .filter((z): z is string => !!z)
+      )
+    );
+
+    const zipCoords: Record<string, { lat: number; lng: number }> = {};
+    for (const zip of zips) {
+      const coords = await geocodeZip(zip);
+      if (coords) {
+        zipCoords[zip] = coords;
       }
     }
 
-    void load();
-  }, []);
+    const result: UnitForMap[] = rows.map((u) => {
+      const rawZip = u.customer?.zip ?? null;
+      const key = rawZip ? rawZip.replace(/\s/g, "") : null;
+      const coords = key ? zipCoords[key] ?? null : null;
 
-  if (loading) {
-    return (
-      <div className="h-80 rounded-lg border bg-white flex items-center justify-center text-sm text-gray-500">
-        Načítám mapu…
-      </div>
+      return {
+        id: u.id,
+        model: u.model,
+        sale_date: u.sale_date,
+        customer_city: u.customer?.city ?? null,
+        postal_code: rawZip,
+        lat: coords?.lat ?? 49.8, // fallback: střed ČR
+        lng: coords?.lng ?? 15.5,
+      };
+    });
+
+    return NextResponse.json(result);
+  } catch (e) {
+    console.error("Unexpected /api/dashboard/units-map error:", e);
+    return NextResponse.json(
+      { error: "Interní chyba serveru." },
+      { status: 500 }
     );
   }
-
-  if (error) {
-    return (
-      <div className="h-80 rounded-lg border bg-red-50 flex items-center justify-center text-sm text-red-700">
-        {error}
-      </div>
-    );
-  }
-
-  if (!units.length) {
-    return (
-      <div className="h-80 rounded-lg border bg-white flex items-center justify-center text-sm text-gray-500">
-        Zatím žádné prodané vozíky.
-      </div>
-    );
-  }
-
-  // spočítáme průměr souřadnic, aby se mapa rozumně vycentrovala
-  const center: LatLngExpression = [
-    units.reduce((sum, u) => sum + u.lat, 0) / units.length,
-    units.reduce((sum, u) => sum + u.lng, 0) / units.length,
-  ];
-
-  return (
-    <div className="h-80 rounded-lg overflow-hidden border bg-white">
-      {/* MapContainer už je client-only díky dynamic importům výše */}
-      <MapContainer
-        center={center}
-        zoom={7}
-        scrollWheelZoom={false}
-        className="w-full h-full"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">
-            OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {units.map((u) => (
-          <Marker key={u.id} position={[u.lat, u.lng]}>
-            <Popup>
-              <div className="text-xs">
-                <div className="font-semibold">
-                  {u.model ?? "Vozík"}{" "}
-                  {u.postal_code ? `(${u.postal_code})` : ""}
-                </div>
-                {u.customer_city && <div>{u.customer_city}</div>}
-                {u.sale_date && (
-                  <div>Prodáno: {u.sale_date}</div>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
-  );
 }
