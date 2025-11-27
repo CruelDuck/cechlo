@@ -5,103 +5,138 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
-// ruční mapování PSČ -> souřadnice (přidej / uprav podle svých zákazníků)
-const ZIP_COORDS: Record<
-  string,
-  {
-    lat: number;
-    lng: number;
-  }
-> = {
-  // příklady – uprav / doplň
-  "41108": { lat: 50.452, lng: 14.374 }, // Štětí
-  "53401": { lat: 50.065, lng: 15.987 }, // Holice
-  "19000": { lat: 50.11, lng: 14.50 },   // Praha 9
-  "38601": { lat: 49.26, lng: 13.91 },   // Strakonice
-  "41723": { lat: 50.66, lng: 13.73 },   // Košťany
-  "34815": { lat: 49.74, lng: 12.67 },   // Chodský Újezd
-  "44001": { lat: 50.35, lng: 13.80 },   // Louny
-  "40502": { lat: 50.78, lng: 14.21 },   // Děčín
-  // sem postupně přidávej další PSČ, jak budeš chtít vozíky na mapě
+type UnitRow = {
+  id: string;
+  model: string | null;
+  sale_date: string | null;
+  customer: {
+    city: string | null;
+    zip: string | null;
+  } | null;
 };
+
+type UnitForMap = {
+  id: string;
+  model: string | null;
+  sale_date: string | null;
+  customer_city: string | null;
+  postal_code: string | null;
+  lat: number;
+  lng: number;
+};
+
+// jednoduchý cache uvnitř funkce (pro jedno volání)
+const geocodeCache = new Map<string, { lat: number; lng: number }>();
+
+async function geocodeZip(zip: string): Promise<{ lat: number; lng: number } | null> {
+  const normalized = zip.replace(/\s/g, "");
+  if (geocodeCache.has(normalized)) {
+    return geocodeCache.get(normalized)!;
+  }
+
+  const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(
+    normalized
+  )}&countrycodes=cz&format=json&limit=1`;
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        // slušný user-agent pro Nominatim
+        "User-Agent": "cechlo-inventory/1.0 (kontakt: jakub.c@centrum.cz)",
+      },
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const json = await res.json();
+    if (!Array.isArray(json) || json.length === 0) {
+      return null;
+    }
+
+    const { lat, lon } = json[0];
+    const coords = { lat: parseFloat(lat), lng: parseFloat(lon) };
+
+    geocodeCache.set(normalized, coords);
+    return coords;
+  } catch (e) {
+    console.error("Geocoding error for ZIP", zip, e);
+    return null;
+  }
+}
 
 export async function GET(_req: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
+    // prodané vozíky s navázaným zákazníkem (město + PSČ)
     const { data, error } = await supabase
       .from("units")
       .select(
         `
         id,
-        serial_number,
         model,
         sale_date,
-        status,
         customer:customers (
-          id,
-          name,
           city,
           zip
         )
       `
       )
-      .eq("status", "sold"); // jen prodané vozíky
+      .eq("status", "sold")
+      .not("customer_id", "is", null);
 
     if (error) {
-      console.error("GET /api/dashboard/units-map error:", error);
+      console.error("/api/dashboard/units-map supabase error:", error);
       return NextResponse.json(
         { error: "Nepodařilo se načíst data pro mapu." },
         { status: 500 }
       );
     }
 
-    const rows = (data ?? []) as any[];
+    const rows = (data ?? []) as UnitRow[];
 
-    const points = rows
-      .map((u) => {
-        const customer = u.customer as
-          | {
-              id: string;
-              name: string;
-              city: string | null;
-              zip: string | null;
-            }
-          | null
-          | undefined;
+    // unikátní PSČ
+    const zips = Array.from(
+      new Set(
+        rows
+          .map((u) => u.customer?.zip?.replace(/\s/g, ""))
+          .filter((z): z is string => !!z)
+      )
+    );
 
-        const zipRaw = customer?.zip ?? "";
-        const zip = zipRaw ? String(zipRaw).trim() : "";
-        if (!zip) {
-          return null;
-        }
+    // geokódování všech PSČ
+    const zipCoords: Record<string, { lat: number; lng: number }> = {};
+    for (const zip of zips) {
+      const coords = await geocodeZip(zip);
+      if (coords) {
+        zipCoords[zip] = coords;
+      }
+    }
 
-        const coords = ZIP_COORDS[zip];
-        if (!coords) {
-          // PSČ zatím nemáme v mapě, tak bod nevracíme
-          return null;
-        }
+    // sestavení výstupu pro frontend
+    const result: UnitForMap[] = rows.map((u) => {
+      const rawZip = u.customer?.zip ?? null;
+      const key = rawZip ? rawZip.replace(/\s/g, "") : null;
+      const coords = key ? zipCoords[key] ?? null : null;
 
-        return {
-          id: u.id as string,
-          serial_number: u.serial_number as string,
-          model: (u.model as string | null) ?? null,
-          sale_date: (u.sale_date as string | null) ?? null,
-          customer_id: customer?.id ?? null,
-          customer_name: customer?.name ?? null,
-          city: customer?.city ?? null,
-          zip,
-          lat: coords.lat,
-          lng: coords.lng,
-        };
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null);
+      return {
+        id: u.id,
+        model: u.model,
+        sale_date: u.sale_date,
+        customer_city: u.customer?.city ?? null,
+        postal_code: rawZip,
+        lat: coords?.lat ?? 49.8, // fallback: střed ČR
+        lng: coords?.lng ?? 15.5,
+      };
+    });
 
-    return NextResponse.json(points);
+    return NextResponse.json(result);
   } catch (e) {
     console.error("Unexpected /api/dashboard/units-map error:", e);
     return NextResponse.json(
-      { error: "Interní chyba serveru při načítání mapy." },
+      { error: "Interní chyba serveru." },
       { status: 500 }
     );
   }
