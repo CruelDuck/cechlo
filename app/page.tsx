@@ -110,8 +110,8 @@ export default async function DashboardPage() {
             Kde všude už jezdí Čechlo vozíky
           </h3>
           <p className="text-xs text-gray-500">
-            Zatím seznam míst podle města zákazníka – časem se dá
-            nahradit skutečnou mapou.
+            Interaktivní mapa prodaných vozíků podle města zákazníka.
+            Klikni na bod v mapě pro detail zákazníka a vozíku.
           </p>
           <DashboardMap />
         </div>
