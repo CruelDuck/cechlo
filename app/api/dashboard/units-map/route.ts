@@ -5,16 +5,6 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export const runtime = "nodejs";
 
-type UnitRow = {
-  id: string;
-  model: string | null;
-  sale_date: string | null;
-  customer: {
-    city: string | null;
-    zip: string | null;
-  } | null;
-};
-
 type UnitForMap = {
   id: string;
   model: string | null;
@@ -25,10 +15,12 @@ type UnitForMap = {
   lng: number;
 };
 
-// jednoduchý cache uvnitř funkce (pro jedno volání)
+// jednoduchý cache uvnitř requestu
 const geocodeCache = new Map<string, { lat: number; lng: number }>();
 
-async function geocodeZip(zip: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodeZip(
+  zip: string
+): Promise<{ lat: number; lng: number } | null> {
   const normalized = zip.replace(/\s/g, "");
   if (geocodeCache.has(normalized)) {
     return geocodeCache.get(normalized)!;
@@ -41,19 +33,14 @@ async function geocodeZip(zip: string): Promise<{ lat: number; lng: number } | n
   try {
     const res = await fetch(url, {
       headers: {
-        // slušný user-agent pro Nominatim
         "User-Agent": "cechlo-inventory/1.0 (kontakt: jakub.c@centrum.cz)",
       },
     });
 
-    if (!res.ok) {
-      return null;
-    }
+    if (!res.ok) return null;
 
     const json = await res.json();
-    if (!Array.isArray(json) || json.length === 0) {
-      return null;
-    }
+    if (!Array.isArray(json) || json.length === 0) return null;
 
     const { lat, lon } = json[0];
     const coords = { lat: parseFloat(lat), lng: parseFloat(lon) };
@@ -70,7 +57,6 @@ export async function GET(_req: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
-    // prodané vozíky s navázaným zákazníkem (město + PSČ)
     const { data, error } = await supabase
       .from("units")
       .select(
@@ -95,18 +81,23 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    const rows = (data ?? []) as UnitRow[];
+    const raw = (data ?? []) as any[];
 
-    // unikátní PSČ
+    // nejdřív si vyzobeme unikátní PSČ kvůli geokódování
     const zips = Array.from(
       new Set(
-        rows
-          .map((u) => u.customer?.zip?.replace(/\s/g, ""))
+        raw
+          .map((u) => {
+            const customerRaw = Array.isArray(u.customer)
+              ? u.customer[0]
+              : u.customer;
+            const zip: string | null | undefined = customerRaw?.zip;
+            return zip ? zip.replace(/\s/g, "") : null;
+          })
           .filter((z): z is string => !!z)
       )
     );
 
-    // geokódování všech PSČ
     const zipCoords: Record<string, { lat: number; lng: number }> = {};
     for (const zip of zips) {
       const coords = await geocodeZip(zip);
@@ -115,17 +106,28 @@ export async function GET(_req: NextRequest) {
       }
     }
 
-    // sestavení výstupu pro frontend
-    const result: UnitForMap[] = rows.map((u) => {
-      const rawZip = u.customer?.zip ?? null;
-      const key = rawZip ? rawZip.replace(/\s/g, "") : null;
-      const coords = key ? zipCoords[key] ?? null : null;
+    const result: UnitForMap[] = raw.map((u) => {
+      const customerRaw = Array.isArray(u.customer)
+        ? u.customer[0]
+        : u.customer;
+
+      const city: string | null =
+        customerRaw && customerRaw.city !== undefined
+          ? customerRaw.city
+          : null;
+      const rawZip: string | null =
+        customerRaw && customerRaw.zip !== undefined
+          ? customerRaw.zip
+          : null;
+
+      const zipKey = rawZip ? rawZip.replace(/\s/g, "") : null;
+      const coords = zipKey ? zipCoords[zipKey] ?? null : null;
 
       return {
-        id: u.id,
-        model: u.model,
-        sale_date: u.sale_date,
-        customer_city: u.customer?.city ?? null,
+        id: String(u.id),
+        model: u.model ?? null,
+        sale_date: u.sale_date ?? null,
+        customer_city: city,
         postal_code: rawZip,
         lat: coords?.lat ?? 49.8, // fallback: střed ČR
         lng: coords?.lng ?? 15.5,
