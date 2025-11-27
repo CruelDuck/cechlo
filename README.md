@@ -2,7 +2,7 @@
 
 Jednoduchá Next.js + Supabase appka pro správu zákazníků, leadů a vozíků.
 
-## Lokální spuštění
+## Lokální spuštění 
 
 1. Nainstaluj závislosti:
    ```bash
