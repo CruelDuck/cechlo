@@ -1,21 +1,9 @@
-// app/api/dashboard/units-map/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+// components/DashboardMap.tsx
+"use client";
 
-export const runtime = "nodejs";
+import { useEffect, useState } from "react";
 
-type UnitRow = {
-  id: string;
-  model: string | null;
-  sale_date: string | null;
-  customer: {
-    city: string | null;
-    zip: string | null;
-  } | null;
-};
-
-type UnitForMap = {
+type UnitPoint = {
   id: string;
   model: string | null;
   sale_date: string | null;
@@ -25,135 +13,140 @@ type UnitForMap = {
   lng: number;
 };
 
-// jednoduchý cache uvnitř requestu
-const geocodeCache = new Map<string, { lat: number; lng: number }>();
+export default function DashboardMap() {
+  const [points, setPoints] = useState<UnitPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-async function geocodeZip(
-  zip: string
-): Promise<{ lat: number; lng: number } | null> {
-  const normalized = zip.replace(/\s/g, "");
-  if (geocodeCache.has(normalized)) {
-    return geocodeCache.get(normalized)!;
-  }
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(
-    normalized
-  )}&countrycodes=cz&format=json&limit=1`;
+        const res = await fetch("/api/dashboard/units-map");
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          setError(
+            payload?.error ?? "Nepodařilo se načíst data pro mapu."
+          );
+          setPoints([]);
+          return;
+        }
 
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "cechlo-inventory/1.0 (kontakt: jakub.c@centrum.cz)",
-      },
-    });
-
-    if (!res.ok) return null;
-
-    const json = await res.json();
-    if (!Array.isArray(json) || json.length === 0) return null;
-
-    const { lat, lon } = json[0];
-    const coords = { lat: parseFloat(lat), lng: parseFloat(lon) };
-
-    geocodeCache.set(normalized, coords);
-    return coords;
-  } catch (e) {
-    console.error("Geocoding error for ZIP", zip, e);
-    return null;
-  }
-}
-
-export async function GET(_req: NextRequest) {
-  try {
-    const supabase = createRouteHandlerClient({ cookies });
-
-    const { data, error } = await supabase
-      .from("units")
-      .select(
-        `
-        id,
-        model,
-        sale_date,
-        customer:customers (
-          city,
-          zip
-        )
-      `
-      )
-      .eq("status", "sold")
-      .not("customer_id", "is", null);
-
-    if (error) {
-      console.error("/api/dashboard/units-map supabase error:", error);
-      return NextResponse.json(
-        { error: "Nepodařilo se načíst data pro mapu." },
-        { status: 500 }
-      );
-    }
-
-    // Supabase může vrátit customer jako objekt NEBO pole objektů,
-    // tak si to srovnáme do našeho UnitRow.
-    const rows: UnitRow[] = (data ?? []).map((u: any) => {
-      const customerRaw = Array.isArray(u.customer)
-        ? u.customer[0]
-        : u.customer;
-
-      return {
-        id: String(u.id),
-        model: u.model ?? null,
-        sale_date: u.sale_date ?? null,
-        customer: customerRaw
-          ? {
-              city:
-                customerRaw.city !== undefined
-                  ? customerRaw.city
-                  : null,
-              zip:
-                customerRaw.zip !== undefined ? customerRaw.zip : null,
-            }
-          : null,
-      };
-    });
-
-    // unikátní PSČ z customer.zip
-    const zips = Array.from(
-      new Set(
-        rows
-          .map((u) => u.customer?.zip?.replace(/\s/g, ""))
-          .filter((z): z is string => !!z)
-      )
-    );
-
-    const zipCoords: Record<string, { lat: number; lng: number }> = {};
-    for (const zip of zips) {
-      const coords = await geocodeZip(zip);
-      if (coords) {
-        zipCoords[zip] = coords;
+        const data = (await res.json()) as UnitPoint[];
+        setPoints(data);
+      } catch (e) {
+        console.error(e);
+        setError("Neočekávaná chyba při načítání mapy.");
+        setPoints([]);
+      } finally {
+        setLoading(false);
       }
     }
 
-    const result: UnitForMap[] = rows.map((u) => {
-      const rawZip = u.customer?.zip ?? null;
-      const key = rawZip ? rawZip.replace(/\s/g, "") : null;
-      const coords = key ? zipCoords[key] ?? null : null;
+    void load();
+  }, []);
 
-      return {
-        id: u.id,
-        model: u.model,
-        sale_date: u.sale_date,
-        customer_city: u.customer?.city ?? null,
-        postal_code: rawZip,
-        lat: coords?.lat ?? 49.8, // fallback: střed ČR
-        lng: coords?.lng ?? 15.5,
-      };
-    });
-
-    return NextResponse.json(result);
-  } catch (e) {
-    console.error("Unexpected /api/dashboard/units-map error:", e);
-    return NextResponse.json(
-      { error: "Interní chyba serveru." },
-      { status: 500 }
+  if (loading) {
+    return (
+      <div className="rounded-lg border bg-white p-4 text-sm text-gray-500">
+        Načítám polohu prodaných vozíků…
+      </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border bg-white p-4 text-sm text-red-600">
+        {error}
+      </div>
+    );
+  }
+
+  if (points.length === 0) {
+    return (
+      <div className="rounded-lg border bg-white p-4 text-sm text-gray-500">
+        Zatím žádná data o prodaných vozících s vyplněným PSČ.
+      </div>
+    );
+  }
+
+  // spočteme min/max kvůli “normalizaci” do 0–100 %
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  function projectLat(lat: number) {
+    if (maxLat === minLat) return 50;
+    return ((lat - minLat) / (maxLat - minLat)) * 100;
+  }
+
+  function projectLng(lng: number) {
+    if (maxLng === minLng) return 50;
+    return ((lng - minLng) / (maxLng - minLng)) * 100;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      {/* pseudo-mapa */}
+      <div className="relative rounded-lg border bg-gradient-to-br from-sky-50 via-emerald-50 to-slate-100 p-2 h-72 overflow-hidden">
+        {/* jemná mřížka */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <div className="w-full h-full bg-[radial-gradient(circle_at_1px_1px,#cbd5f5_1px,transparent_0)] bg-[length:24px_24px]" />
+        </div>
+
+        {/* body */}
+        <div className="relative w-full h-full">
+          {points.map((p) => {
+            const top = 100 - projectLat(p.lat); // aby sever byl nahoře
+            const left = projectLng(p.lng);
+
+            return (
+              <div
+                key={p.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ top: `${top}%`, left: `${left}%` }}
+              >
+                <div className="h-3 w-3 rounded-full bg-emerald-600 shadow-md border border-white" />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* seznam míst */}
+      <div className="rounded-lg border bg-white p-3 text-sm max-h-72 overflow-auto">
+        <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+          Místa, kde jezdí Čechlo
+        </h4>
+        <ul className="space-y-1">
+          {points.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 border-b last:border-b-0 py-1"
+            >
+              <div>
+                <div className="font-medium text-gray-800">
+                  {p.customer_city ?? "Neznámé město"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  PSČ: {p.postal_code ?? "—"}
+                  {p.model && ` · model ${p.model}`}
+                </div>
+              </div>
+              {p.sale_date && (
+                <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                  {p.sale_date}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
 }
