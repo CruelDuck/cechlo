@@ -106,14 +106,13 @@ export default async function DashboardPage() {
       {/* Mapa + rychlé odkazy */}
       <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-800">
-            Kde všude už jezdí Čechlo vozíky
-          </h3>
-          <p className="text-xs text-gray-500">
-            Interaktivní mapa prodaných vozíků podle města zákazníka.
-            Klikni na bod v mapě pro detail zákazníka a vozíku.
-          </p>
-          <DashboardMap />
+<h3 className="text-sm font-semibold text-gray-800">
+  Kde všude už jezdí Čechlo vozíky
+</h3>
+<p className="text-xs text-gray-500">
+  Orientační mapa podle PSČ zákazníků s prodanými vozíky.
+</p>
+<DashboardMap />
         </div>
 
         <div className="space-y-2">
