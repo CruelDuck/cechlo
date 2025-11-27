@@ -1,92 +1,123 @@
+// components/DashboardMap.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 
-type UnitMarker = {
+type UnitRow = {
   id: string;
-  serial_number: string;
-  model: string | null;
-  sale_date: string | null;
-  customer_name: string | null;
-  city: string | null;
-  lat: number;
-  lng: number;
+  status: string;
+  customer_city: string | null;
+  warehouse_location: string | null;
 };
 
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((m) => m.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((m) => m.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import("react-leaflet").then((m) => m.Marker),
-  { ssr: false }
-);
-const Popup = dynamic(
-  () => import("react-leaflet").then((m) => m.Popup),
-  { ssr: false }
-);
+type CityStat = {
+  city: string;
+  count: number;
+};
 
-export function UnitsMap() {
-  const [markers, setMarkers] = useState<UnitMarker[]>([]);
+export default function DashboardMap() {
+  const [stats, setStats] = useState<CityStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/dashboard/units-map");
-        if (!res.ok) return;
-        const data = (await res.json()) as any[];
-        setMarkers(
-          data.filter((m) => typeof m.lat === "number" && typeof m.lng === "number")
-        );
+        setLoading(true);
+        setError(null);
+
+        // vezmeme jen prodané vozíky, aby mapa ukazovala zákazníky
+        const res = await fetch("/api/units?status=sold");
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          setError(payload?.error ?? "Nepodařilo se načíst data pro mapu.");
+          setStats([]);
+          return;
+        }
+
+        const data = (await res.json()) as UnitRow[];
+
+        const counts = new Map<string, number>();
+
+        for (const u of data) {
+          const city = (u.customer_city || u.warehouse_location || "Neznámé místo").trim();
+          if (!city) continue;
+          counts.set(city, (counts.get(city) ?? 0) + 1);
+        }
+
+        const list: CityStat[] = Array.from(counts.entries())
+          .map(([city, count]) => ({ city, count }))
+          .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+
+        setStats(list);
+      } catch (e) {
+        console.error(e);
+        setError("Neočekávaná chyba při načítání dat pro mapu.");
+        setStats([]);
       } finally {
         setLoading(false);
       }
     }
+
     void load();
   }, []);
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Načítám mapu…</p>;
-  }
-
-  if (!markers.length) {
     return (
-      <p className="text-sm text-gray-500">
-        Zatím nemám žádné prodané vozíky s nastavenou polohou.
-      </p>
+      <div className="h-72 rounded-lg border bg-white flex items-center justify-center text-sm text-gray-500">
+        Načítám rozložení vozíků…
+      </div>
     );
   }
 
-  // jednoduché výchozí centrum – třeba střed ČR
-  const center: [number, number] = [49.8, 15.5];
+  if (error) {
+    return (
+      <div className="h-72 rounded-lg border bg-white flex items-center justify-center text-sm text-red-600 px-4 text-center">
+        {error}
+      </div>
+    );
+  }
+
+  if (stats.length === 0) {
+    return (
+      <div className="h-72 rounded-lg border bg-white flex items-center justify-center text-sm text-gray-500 px-4 text-center">
+        Zatím nejsou žádné prodané vozíky, které by šlo zobrazit na mapě.
+      </div>
+    );
+  }
 
   return (
-    <div className="h-72 rounded-lg overflow-hidden border">
-      <MapContainer center={center} zoom={7} style={{ height: "100%", width: "100%" }}>
-        <TileLayer
-          attribution='&copy; OSM přispěvatelé'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {markers.map((m) => (
-          <Marker key={m.id} position={[m.lat, m.lng]}>
-            <Popup>
-              <div className="text-sm">
-                <div className="font-semibold">{m.customer_name ?? "Bez názvu"}</div>
-                {m.city && <div>{m.city}</div>}
-                <div>{m.model ?? "Vozík"}</div>
-                <div className="font-mono text-xs">{m.serial_number}</div>
-                {m.sale_date && <div>Prodáno: {m.sale_date}</div>}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+    <div className="h-72 rounded-lg border bg-white p-3 flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-gray-500">
+          Přehled podle města zákazníka
+        </span>
+        <span className="text-xs text-gray-400">
+          Celkem míst: {stats.length}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <ul className="divide-y text-sm">
+          {stats.map((row) => (
+            <li
+              key={row.city}
+              className="flex items-center justify-between py-1.5"
+            >
+              <span className="truncate">{row.city}</span>
+              <span className="ml-3 inline-flex min-w-[2.5rem] justify-end text-xs font-semibold text-gray-700">
+                × {row.count}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="mt-2 text-[11px] text-gray-400">
+        Ve fázi 1 jen seznam měst. Později můžeme doplnit skutečnou mapu
+        (Leaflet / Mapbox) s tečkami podle regionů.
+      </p>
     </div>
   );
 }
