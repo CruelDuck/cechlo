@@ -1,5 +1,5 @@
 // app/page.tsx (dashboard) 
-import { UnitsMap } from "./_components/UnitsMap"; // podle umístění
+import { UnitsMap } from "./components/DashboardMap"; // podle umístění
 
 export default function DashboardPage() {
   return (
